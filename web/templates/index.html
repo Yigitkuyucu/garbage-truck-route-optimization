@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Atık Toplama Planlama</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♻️</text></svg>">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+
+<header class="appbar">
+  <div class="brand">
+    <span class="mark">♻</span>
+    <span>Atık Toplama Planlama</span>
+  </div>
+  <span class="sub" id="regionLabel">-</span>
+  <span class="spacer"></span>
+  <span class="badge badge-proto" title="Parametreler belediye verisiyle doğrulanmadı; çıktı planlama desteğidir, saha talimatı değildir.">
+    prototip
+  </span>
+  <span class="badge badge-hash" id="hashLabel">-</span>
+</header>
+
+<main class="shell">
+
+  <!-- ============================ SOL SÜTUN ============================ -->
+  <div class="col">
+
+    <!-- 1 · Durum -->
+    <section class="card">
+      <header><span class="step">1</span><h2>Mevcut durum</h2>
+        <span class="hint" id="lastDate">-</span>
+      </header>
+      <div class="stats" id="stateStats">
+        <div class="stat"><div class="k">Ort. doluluk</div><div class="v">-</div></div>
+        <div class="stat"><div class="k">Dolu (&gt;%80)</div><div class="v">-</div></div>
+        <div class="stat"><div class="k">Hijyen sınırı</div><div class="v">-</div></div>
+        <div class="stat"><div class="k">En uzun bekleme</div><div class="v">-</div></div>
+      </div>
+    </section>
+
+    <!-- 2 · Doluluk -->
+    <section class="card">
+      <header><span class="step">2</span><h2>Bugünün dolulukları</h2></header>
+      <div class="body">
+        <div class="tabs" id="fillTabs">
+          <button data-tab="csv" class="on">CSV yükle</button>
+          <button data-tab="sim">Modelden üret</button>
+        </div>
+
+        <div id="tab-csv" style="margin-top:13px">
+          <a class="btn-ghost btn-block btn-sm" style="display:flex;text-decoration:none;margin-bottom:9px"
+             href="/api/template.csv">⬇ Şablonu indir</a>
+          <div class="filebox">
+            <input type="file" id="csvFile" accept=".csv">
+            <div class="fake" id="csvFake">📄 CSV seç veya buraya sürükle</div>
+          </div>
+          <button class="btn-primary btn-block" id="btnUpload" style="margin-top:9px" disabled>Yükle</button>
+        </div>
+
+        <div id="tab-sim" class="hidden" style="margin-top:13px">
+          <p class="muted" style="margin:0 0 10px">
+            Sensör verisi yokken gösterim için: mevcut dolulukların üzerine modelden
+            bir günlük üretim eklenir (simülasyonla aynı fonksiyon).
+          </p>
+          <label class="field"><span class="lbl">Üretim seed</span>
+            <input type="number" id="simSeed" value="0" min="0" max="9999"></label>
+          <button class="btn-primary btn-block" id="btnSimulate">Bir gün üret</button>
+        </div>
+
+        <div id="fillInfo" class="hidden" style="margin-top:12px"></div>
+      </div>
+    </section>
+
+    <!-- 3 · Çöz -->
+    <section class="card">
+      <header><span class="step">3</span><h2>Günü çöz</h2></header>
+      <div class="body">
+        <label class="field"><span class="lbl">Çözücü</span>
+          <select id="solver"></select></label>
+        <div class="row">
+          <label class="field"><span class="lbl">λ (atlama cezası)</span>
+            <input type="number" id="lambda" step="0.05" min="0.01"></label>
+          <label class="field"><span class="lbl">Süre limiti (sn)</span>
+            <input type="number" id="tlimit" value="10" min="1" max="120"></label>
+        </div>
+        <button class="btn-primary btn-block" id="btnSolve" disabled>
+          <span id="solveLabel">Bugünü çöz</span>
+        </button>
+        <p class="muted" style="margin:9px 0 0">
+          λ'nın bu kurulumda sonuca etkisi çok küçüktür - zorunlu ziyaret kuralı
+          kararı zaten belirler.
+        </p>
+      </div>
+    </section>
+
+    <!-- 4 · Uygula -->
+    <section class="card" id="applyCard">
+      <header><span class="step">4</span><h2>Toplamayı uygula</h2></header>
+      <div class="body">
+        <p class="muted" style="margin:0 0 10px">
+          Onaylayınca ziyaret edilen konteynerler boşaltılmış sayılır, bekleme
+          sayaçları güncellenir ve durum diske yazılır. Bu adım geri alınamaz.
+        </p>
+        <label class="field"><span class="lbl">Toplama tarihi</span>
+          <input type="date" id="applyDate"></label>
+        <button class="btn-primary btn-block" id="btnApply" disabled>Uygula ve kaydet</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <header><h2>Geçmiş</h2>
+        <span class="hint"><button class="btn-danger btn-sm" id="btnReset">Durumu sıfırla</button></span>
+      </header>
+      <div class="table-wrap" id="historyWrap">
+        <p class="muted" style="padding:14px">Henüz uygulanmış bir gün yok.</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============================ SAĞ SÜTUN ============================ -->
+  <div class="col">
+
+    <section class="card">
+      <div class="stats" id="kpiStats">
+        <div class="stat hero"><div class="k">Yakıt</div><div class="v">-</div></div>
+        <div class="stat"><div class="k">CO₂</div><div class="v">-</div></div>
+        <div class="stat"><div class="k">Durak</div><div class="v">-</div></div>
+        <div class="stat"><div class="k">Atlanan</div><div class="v">-</div></div>
+        <div class="stat"><div class="k">Mesafe</div><div class="v">-</div></div>
+      </div>
+      <div class="body tight" id="kpiDetail">
+        <p class="muted" style="margin:0">Plan hesaplanınca yakıt kalemleri burada görünür.</p>
+      </div>
+    </section>
+
+    <div id="planNotes"></div>
+
+    <section class="card">
+      <header><h2>Rota haritası</h2>
+        <span class="hint" id="mapHint">plan bekleniyor</span>
+      </header>
+      <div id="map"></div>
+      <div class="legend">
+        <span><i class="dot" style="background:#c0392b"></i> zorunlu</span>
+        <span><i class="dot" style="background:#0f7a5a"></i> ziyaret</span>
+        <span><i class="dot" style="background:#b9c0c8"></i> atlanan</span>
+        <span><i class="dot" style="background:#1c5ba8;width:11px;height:11px"></i> garaj</span>
+        <span><i class="dot" style="background:#7d3c98;width:11px;height:11px"></i> döküm</span>
+        <span id="vehLegend" style="gap:10px"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <header><h2>Sürücü durak listesi</h2>
+        <span class="hint">
+          <a class="btn-ghost btn-sm" id="btnStops" style="text-decoration:none;pointer-events:none;opacity:.45"
+             href="/api/stops.csv">⬇ CSV</a>
+        </span>
+      </header>
+      <div class="table-wrap" id="stopsWrap">
+        <p class="muted" style="padding:14px">Plan hesaplanınca durak listesi burada görünür.</p>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div id="toasts"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

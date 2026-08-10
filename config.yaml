@@ -1,0 +1,250 @@
+# ============================================================
+# config.yaml - Dinamik Atik Toplama ve Rota Optimizasyonu (Faz 1)
+# ============================================================
+# Tum sabitler burada. Kodda ciplak sayi yok.
+# Tek istisna: birim donusumleri (1000, 3600) ve matematiksel sabitler.
+# ============================================================
+
+# Tek global seed -> alt seed'ler turetilir
+seed: 20260718
+
+# ------------------------------------------------------------
+# CALISMA BOLGESI
+# ------------------------------------------------------------
+region:
+  name: "gelibolu_merkez"
+  center: [40.409765, 26.672201]   # calisma bolgesi merkezi (lat, lon)
+  radius_m: 5500                    # OSMnx INDIRME yaricapi (bbox yari-kenar; kare).
+                                    # Garaj (~1.9km) + dokum (~6.2km) grafta olsun diye
+                                    # buyuk. Cache; degistirme = yeniden indir.
+  study_radius_m: 420               # CALISMA dairesi (binalar buna kirpilir).
+                                    # Kamyon capasi bu degeri belirler.
+                                    # Overflow olcekle degil yerlestirmeyle cozulur.
+  network_type: "drive"             # tek yon sokaklar dahil
+
+# ------------------------------------------------------------
+# GARAJ ve DOKUM SAHASI (ayri iki nokta)
+# Rota: Garaj -> konteynerler -> Dokum -> Garaj
+# Kaynak: Gelibolu Belediyesi Temizlik Isleri (2026).
+# ------------------------------------------------------------
+depot:
+  name: "Gelibolu Belediyesi Temizlik Isleri Garaji"
+  coord: [40.42695777289317, 26.67026495956441]
+dump_site:
+  name: "Kati atik dokum sahasi"
+  coord: [40.45069464064257, 26.62304666170078]
+
+# ------------------------------------------------------------
+# BINA -> SAKIN -> COP zinciri
+# ------------------------------------------------------------
+building_model:
+  m2_per_person: 30          # kat alani / bu = sakin sayisi
+  kg_per_person_day: 1.2     # TUIK atik uretim orani (kg/kisi/gun)
+  waste_density_kg_m3: 120   # sikistirilmamis cop yogunlugu (kg/m3)
+  # Kat sayisi: OSM building:levels varsa o kullanilir (Gelibolu'da %0!); yoksa
+  # TIPE gore dagilimdan cekilir. Uniform tam sayi [min,max].
+  # Konut ort 4->3 GERI ALINDI (kalibrasyon): iki bagimsiz capa 3'u isaret etti -
+  #   (1) tum-sehir nufus orani: ort3 -> 0.94, ort4 -> 1.13
+  #   (2) merkez yogunlugu: ort3 -> 25.4k/km2 (makul), ort4 -> 33.7k (Manhattan+)
+  # "Ort 4" apartman kusagi gozlemiydi; tum dokuya genellemek merkezi sisiriyordu.
+  levels:
+    residential: { min: 2, max: 4 }   # ort 3 - karisik doku (mustakil+apartman)
+    commercial:  { min: 1, max: 3 }   # ort 2 - carsi/dukkan alcak katli
+  # Kat varsayimi duyarliligi (B5c ticari-katsayi felsefesi): konut dagilimi
+  # bu senaryolarda kosulur; sonuc duyarliysa ACIKCA raporlanir.
+  levels_sensitivity:
+    - { min: 2, max: 3 }   # ort 2.5 (muhafazakar)
+    - { min: 2, max: 4 }   # ort 3   (ana)
+    - { min: 3, max: 5 }   # ort 4   (eski varsayim)
+
+# ------------------------------------------------------------
+# TALEP KATSAYILARI (hane basina)
+# UYARI: gerekceli varsayim, kesin olcum DEGIL. Saglam olan siralamadir.
+# ------------------------------------------------------------
+demand_coefficients:
+  residential: 1.0        # temel birim - 1 hane
+  commercial_low: 0.7     # kafe, dukkan
+  commercial_mid: 1.0     # balikhane
+  commercial_high: 1.5    # carsi, market
+
+# Duyarlilik analizi: katsayilar bu 3 senaryoda ayri kosulur
+sensitivity_scenarios:
+  low:  { commercial_low: 0.5, commercial_mid: 0.8, commercial_high: 1.2 }
+  mid:  { commercial_low: 0.7, commercial_mid: 1.0, commercial_high: 1.5 }
+  high: { commercial_low: 0.9, commercial_mid: 1.3, commercial_high: 2.0 }
+
+# ------------------------------------------------------------
+# TICARI NOKTALAR (merkez + etki yaricapi)
+# Yaricap icindeki binalar ilgili turu kazanir. Ortusmede en yuksek gecerli.
+# ------------------------------------------------------------
+commercial_points:
+  - { name: "Carsi basi (Ataturk Cad.)", coord: [40.408180, 26.671882], type: high, radius_m: 60 }
+  - { name: "Carsi sonu (Ataturk Cad.)", coord: [40.405412, 26.672260], type: high, radius_m: 60 }
+  - { name: "Balikhane Sok.",            coord: [40.405270, 26.671636], type: high, radius_m: 50 }
+  - { name: "Belediye Cad. (balikhane)", coord: [40.405979, 26.671803], type: mid,  radius_m: 50 }
+  - { name: "Eski PTT Cad.",             coord: [40.406440, 26.670229], type: low,  radius_m: 50 }
+  - { name: "Ibni Hasancik Sok.",        coord: [40.406511, 26.670713], type: low,  radius_m: 40 }
+  - { name: "Kemal Reis (kafeler)",      coord: [40.414216, 26.679044], type: low,  radius_m: 50 }
+
+# ------------------------------------------------------------
+# PAZAR NOKTALARI (periyodik - sadece kuruldugu gun patlar)
+# ------------------------------------------------------------
+market_zones:
+  - name: "Sali pazari"
+    day: tuesday
+    segments:
+      - [[40.408009, 26.673650], [40.407886, 26.676784]]   # Dursun Bak Cad.
+      - [[40.407173, 26.676417], [40.414062, 26.676981]]   # Muhittin Reis Cad.
+    radius_m: 40
+  - name: "Cumartesi pazari"
+    day: saturday
+    segments:
+      - [[40.414928, 26.670154], [40.416475, 26.667441]]   # Emek Cad.
+    radius_m: 40
+
+# ------------------------------------------------------------
+# TOPLAMA NOKTALARI (talep-dengeli; fix 2 + fix 3)
+# Her nokta TEK dugum; kapasitesi n_bin x volume_l, n_bin talebe gore boyutlanir.
+# Boylece carsi arkasi "cok-bin kume" tek dugum olur, tasma yerlestirmeyle cozulur.
+# ------------------------------------------------------------
+containers:
+  point_spacing_m: 55           # toplama noktasi izgara araligi (nokta yogunlugu)
+  volume_l: 1100                # tek bin hacmi
+  # Provizyon GERCEK belediye yogunluguna baglanir (880 kont / 44689 kisi ~= 51):
+  #   yogunluk_bin = round(nokta_talebi / (target_people_per_bin * kisi_basi_litre))
+  # Boylece B0 gercek altyapiyi yansitir; gun/dolus dagilimi TALEPTEN dogal cikar.
+  target_people_per_bin: 51
+  # Gurultu guvenlik marji: hicbir bin yuksek-gurultu gununde tasmasin diye
+  #   guvenlik_bin = ceil(talep * (1 + noise_sigma_margin*sigma) / bin_hacmi)
+  #   n_bin = max(1, yogunluk_bin, guvenlik_bin)
+  # B0 tasma=0 icin (Bolum 10 #3). 4 sigma: 187*104*10 orneklemin pikini karsilar.
+  # -> ~402 bin (46.5 kisi/bin, capa 2x icinde). 2 sigma yetersizdi (22 acik).
+  noise_sigma_margin: 4.0
+
+# ------------------------------------------------------------
+# ARAC / FILO
+# ------------------------------------------------------------
+vehicle:
+  body_m3: 13                 # kamyon kasa hacmi
+  compaction_ratio: 5         # 5:1 -> etkin kapasite = 13*5*1000 = 65000 L
+  service_time_sec: 90        # servis suresi / konteyner
+  shift_seconds: 28800        # vardiya (8 saat = 8*3600)
+fleet:
+  num_vehicles: 3             # GIRDI, cikti degil
+                              # EN KOTU GUNe gore boyutlandirildi (kat ort 3 kalibrasyonu):
+                              # 90g+warmup x 10 seed gunluk toplam maks=148.442 L / 65.000
+                              # = 2.28 -> 3. Belediye oranina gore beklenti 2.2; fark
+                              # 'gunde tek sefer' varsayimindan (rapor sinirlilik J-9).
+
+# ------------------------------------------------------------
+# YAKIT / EMISYON MODELI - FAZ 2
+# ------------------------------------------------------------
+# Amac fonksiyonu birimi: TAM SAYI MILILITRE (mL) yakit. Bacak basina yuvarlanir
+# (tam sayi istisnasiz; OR-Tools float kabul etmez).
+#
+#   yakit_ml(bacak) = round( mesafe_m * oran_ml_per_m(kutle_kg) )
+#   oran(kutle)     = base_l_per_100km + slope_l_per_100km_per_tonne * kutle_ton
+#   kutle_kg        = biriken_litre * building_model.waste_density_kg_m3 / 1000
+#
+# CIFT SAYIM UYARISI (M.8): literaturun 71-109 L/100km rakamlari TOPLAM gorev
+# cevrimidir, dur-kalk'i ZATEN icerir. base_l_per_100km saf SURUS oranidir;
+# dur-kalk ayri terimdir. Ikisi birlikte toplama bolgesinde ~79 L/100km'yi
+# yeniden uretir (B0 gunu: 11.78 km ic + 187 durak ile kalibre edildi).
+# ------------------------------------------------------------
+fuel:
+  base_l_per_100km: 40.0            # saf surus orani (bos kamyon, dur-kalk HARIC)
+  slope_l_per_100km_per_tonne: 0.51 # saha olcumu: yuk yakiti %10 artirir
+                                    # -> 0.10 * 40 / 7.8 t = 0.51  (rho ~= 1.10)
+  stop_start_ml: 25                 # durak basi dur-kalk (kalibrasyon, M.8)
+  compaction_ml_per_liter: 0.03     # 1100 L bin cevrimi ~ 30 mL (fizik capasi tutuyor)
+  co2_kg_per_l: 2.68                # IPCC/DEFRA, %100 mineral dizel
+  nominal_load_ratio: 0.5           # skip_penalty + B2 ark maliyeti referans yuku
+  # Duyarlilik: katsayilar belirsiz (M.8 zayifliklar). Sonuc duyarliysa RAPORLANIR.
+  sensitivity:
+    - { base_l_per_100km: 35.0, slope_l_per_100km_per_tonne: 0.30, stop_start_ml: 15,
+        compaction_ml_per_liter: 0.01 }   # muhafazakar: yuk ve dur-kalk zayif
+    - { base_l_per_100km: 40.0, slope_l_per_100km_per_tonne: 0.51, stop_start_ml: 25,
+        compaction_ml_per_liter: 0.03 }   # ANA senaryo
+    - { base_l_per_100km: 50.0, slope_l_per_100km_per_tonne: 1.00, stop_start_ml: 60,
+        compaction_ml_per_liter: 0.05 }   # agresif: yuk ve dur-kalk guclu
+
+# ------------------------------------------------------------
+# SERT KISITLAR
+# ------------------------------------------------------------
+constraints:
+  # DOLULUK-FARKINDALIKLI must_visit (C4b) - projenin TEZI: sensorun anlik
+  # dolulugunu kullan (statik takvim/max_gap DEGIL). Iki kosul:
+  #   must_visit_i = (fill_i + gunluk_hiz_i*(1+k*sigma) > hacim_i)   [tasma riski]
+  #                  VEYA (gun_sayisi_i >= hygiene_cap_days)          [koku riski]
+  # Ilk kosul yarin +k*sigma'da tasacaksa BUGUN toplar -> tasma=0 garantili
+  # (yeterli k), yalnizca riskli konteyneri zorlar -> MAKS skip. sigma=daily_noise_sigma.
+  hygiene_cap_days: 3         # organik cop hijyen siniri (yaz/sahil kasaba: 3-4 gun)
+  overflow_predict_sigma_k: 4.0   # k taramasi: k>=3 tasma=0 (50g); tam kosu (900g)
+                                  # icin robustluk marjiyla 4 secildi (~10 durak maliyeti)
+  # Duyarlilik analizi: tavan su degerlerde kosulur (tasarruf/tasma/en-uzun-bekleme).
+  # Beklenti: tasarruf benzer (cogu konteyner zaten gunluk); tavan guvenlik param.
+  hygiene_cap_sensitivity: [3, 5, 7]
+
+# ------------------------------------------------------------
+# ATLAMA CEZASI (skip_penalty)
+# skip_penalty(i) = lambda * doluluk_orani(i) * ort_ekleme_maliyeti(i)
+# lambda TARANIR, tahmin edilmez (Pareto egrisi -> tasma=0 en dusuk mesafe)
+# ------------------------------------------------------------
+skip_penalty:
+  insertion_cost_k: 5         # ort. ekleme maliyeti icin en yakin k komsu
+  lambda_sweep:               # geometrik tarama
+    start: 0.1
+    stop: 10.0
+    num: 20
+
+# ------------------------------------------------------------
+# SIMULASYON
+# ------------------------------------------------------------
+simulation:
+  warmup_days: 14             # atilir
+  report_days: 90             # raporlanir
+  num_seeds: 10               # replikasyon (ayni gerceklem tum cozuculerde)
+  daily_noise_sigma: 0.2      # temel_hiz * gun_carpani * (1 + N(0, 0.2))
+  # Haftalik gun carpanlari (pazar/tatil ritmi). Hepsi 1.0 = notr baslangic.
+  weekday_multipliers:
+    monday: 1.0
+    tuesday: 1.0
+    wednesday: 1.0
+    thursday: 1.0
+    friday: 1.0
+    saturday: 1.0
+    sunday: 1.0
+  market_surge_multiplier: 4.0   # pazar konteyneri kurulum gunu carpani (D2)
+
+# ------------------------------------------------------------
+# COZUCULER (deney protokolu)
+# ------------------------------------------------------------
+solvers:
+  b1_threshold: 0.7           # B1 Esik+Greedy: doluluk > %70 topla
+  # Iki kademeli deney protokolu (naif 90g*10seed*5*60sn=~75 saat):
+  time_limit_long_sec: 8      # UZUN sim (90 gun x 10 seed): amac KPI trendi
+  time_limit_focused_sec: 60  # ODAKLI karsilastirma (temsili gunler): amac adil F2
+  focused_days: 6             # odakli karsilastirmadaki temsili gun sayisi
+
+# ABC
+abc:
+  colony_size: 40             # employed + onlooker
+  limit: 50                   # scout'a dusmeden once deneme siniri
+  local_search_iters: 6       # abc-ls: 2-opt pass sayisi (KISA)
+  local_search_window: 8      # 2-opt yalnizca <= bu uzunlukta segment ters cevirir
+                              # ("kisa 2-opt", E6). Tam 2-opt 187 dugumde cok yavas.
+
+# ------------------------------------------------------------
+# DOGRULAMA CAPALARI (belediye gercek operasyon verisi 2026)
+# ------------------------------------------------------------
+validation:
+  tuik_population: 44689       # TUIK/nufusu.com Gelibolu merkez nufusu
+  population_tolerance: 2.0    # 2 kattan fazla sapma -> kat varsayimi hatali
+  # Gelibolu Belediyesi gercek operasyonu (2026): tum sehir icin
+  municipality_population: 44689
+  municipality_trucks: 7        # 5 gunduz + 2 gece; belediye kendi topluyor
+  municipality_containers: 880  # -> 51 kisi/konteyner
+  anchor_tolerance: 2.0         # capa oran sapmasi (kamyon, konteyner) icin
+  # Turetilen capalar (build'de hesaplanir):
+  #   beklenen_kamyon    = municipality_trucks * (calisma_nufus / municipality_population)
+  #   beklenen_konteyner = calisma_nufus / (municipality_population / municipality_containers)

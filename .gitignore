@@ -1,0 +1,47 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# --- Test / lint / tip onbellekleri ---
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- Operasyonel durum (kullaniciya/kuruluma ozel, FAZ 3 / M.9) ---
+ops_state/*_ops.json
+
+# --- OSMnx ham indirme onbellegi (YALNIZCA kokteki) ---
+# Bastaki / onemli: 'cache/' yazilsaydi data/cache/ de eslesir ve turetilmis
+# mesafe matrisleri disarida kalirdi. Onlar VERSIYONLANIR - proje aga
+# dokunmadan calisabilsin diye. Buradaki klasor sadece indirme hizlandiricisi.
+/cache/
+
+# --- Staj teslimi: depoya GIRMEZ (kullanici karari) ---
+# Rapor, rapor gorselleri, rapor uretim betikleri ve calisma boyunca tutulan
+# karar/kural gunlukleri stajin ciktisidir; bu depo yazilim projesidir.
+# Dosyalar diskte DURUYOR, yalnizca versiyonlanmiyor.
+/docs/
+/CLAUDE.md
+/DECISIONS.md
+
+# --- Deney ciktilari ---
+# runs/<zaman>_<confighash>/ uretilmis sonuclardir (KPI, Pareto, saglik raporu).
+# Yeniden uretmek icin:  uv run python run_full.py
+/runs/
+
+# --- Asilmis taslak (icerigi config.yaml'a tasindi) ---
+/gelibolu-config-parcasi.yaml
+
+# --- Editor / isletim sistemi ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Claude Code: makineye ozel izin listesi (mutlak yol icerir) ---
+# launch.json PAYLASILIR (uygulamayi baslatir), settings.local.json paylasilmaz.
+.claude/settings.local.json

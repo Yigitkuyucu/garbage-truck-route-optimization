@@ -1,0 +1,12 @@
+# Turetilmis veri kumesi onbellegi - BILEREK VERSIYONLANIR.
+#
+# Bu klasor uc parcadan olusur ve UCU BIRDEN gerekir (BuiltDataset.load):
+#   <hash>_matrix.npz         mesafe/sure matrisleri
+#   <hash>_containers.parquet konteyner tablosu (talep hizi, hacim, koordinat)
+#   <hash>_meta.json          bolge kimligi, garaj/dokum
+#
+# Gerekce: klonlayan biri OSM'e hic dokunmadan deneyi tekrar kosabilsin.
+# Toplam ~4 MB. Eskiden burada '*.parquet' vardi; yalnizca bir parcayi
+# dislamak cache'i CALISMAZ hale getiriyordu (npz/json var, tablo yok).
+#
+# Yeniden uretmek icin:  uv run python -m data.build --config config.yaml --force
