@@ -163,7 +163,7 @@ class Simulator:
         SENKRONIZE ediyor; hepsi ayni anda dolup ayni gun zorunlu hale
         geliyordu. Bu, warm-up'ta 7,24 araclik yapay bir tepe uretiyor ve
         filoyu 8'e zorluyordu - oysa raporlanan 90 gunde tepe 6,58 (7 arac).
-        Faz-kademeli baslangicta tepe 6,32'ye iner ve filo, belediyenin gercek
+        Faz-kademeli baslangicta tepe 6,32'ye iner ve filo, referans olcekteki
         7 aracina oturur. Gercekte de konteynerler bir sabah hep birden bos
         degildir; bu varsayim modelin degil, kolay baslangicin urunuydu.
 

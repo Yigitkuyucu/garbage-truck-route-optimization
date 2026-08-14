@@ -121,7 +121,7 @@ class MarketZone(_Base):
 class Containers(_Base):
     point_spacing_m: int = Field(gt=0)
     volume_l: int = Field(gt=0)               # tek bin hacmi
-    target_people_per_bin: int = Field(gt=0)  # belediye yogunlugu (880/44689 ~= 51)
+    target_people_per_bin: int = Field(gt=0)  # referans konteyner yogunlugu
     noise_sigma_margin: float = Field(ge=0)   # provizyon gurultu marji (sigma kati)
 
 
@@ -243,21 +243,28 @@ class ABC(_Base):
 
 
 class Validation(_Base):
+    """Sentetik talep zincirinin sinandigi capalar.
+
+    reference_* degerleri modelin GIRDISI degil, PAYDASIDIR: model kendi
+    urettigi filo/konteyner sayisini bunlarla karsilastirir. Varsayim olarak
+    ele alinirlar; bagimsiz bir sayimla dogrulanmamislardir.
+    """
+
     tuik_population: int = Field(gt=0)
     population_tolerance: float = Field(gt=0)
-    municipality_population: int = Field(gt=0)
-    municipality_trucks: int = Field(gt=0)
-    municipality_containers: int = Field(gt=0)
+    reference_population: int = Field(gt=0)
+    reference_trucks: int = Field(gt=0)
+    reference_containers: int = Field(gt=0)
     anchor_tolerance: float = Field(gt=1.0)
 
     @property
     def people_per_container(self) -> float:
-        """Belediye gercek orani: kisi / konteyner ( or. 880/44689 = 51)."""
-        return self.municipality_population / self.municipality_containers
+        """Referans oran: kisi / konteyner."""
+        return self.reference_population / self.reference_containers
 
     def expected_trucks(self, study_population: float) -> float:
-        """Beklenen kamyon = 7 * (calisma_nufus / tum_sehir_nufus)."""
-        return self.municipality_trucks * study_population / self.municipality_population
+        """Beklenen kamyon = referans_kamyon * (calisma_nufus / referans_nufus)."""
+        return self.reference_trucks * study_population / self.reference_population
 
     def expected_containers(self, study_population: float) -> float:
         """Beklenen konteyner = calisma_nufus / (kisi/konteyner orani)."""

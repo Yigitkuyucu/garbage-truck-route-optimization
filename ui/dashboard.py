@@ -340,11 +340,11 @@ with tab_health:
     a1.metric(f"{_ok(tr_ratio)} Filo (girdi)", f"{cfg.fleet.num_vehicles} arac",
               f"beklenen ~{exp_trucks:.1f} · oran {tr_ratio:.2f}", delta_color="off")
 
-    # 2) Konteyner yogunlugu: model kisi/bin vs belediye 51 (B5d ikinci capa)
+    # 2) Konteyner yogunlugu: model kisi/bin vs referans oran (B5d ikinci capa)
     ppb_model = pop / n_bins if n_bins else 0.0
     ppb_ratio = ppb_model / val.people_per_container if val.people_per_container else 0.0
     a2.metric(f"{_ok(ppb_ratio)} Kisi / konteyner", f"{ppb_model:.0f}",
-              f"belediye {val.people_per_container:.0f} · oran {ppb_ratio:.2f}",
+              f"referans {val.people_per_container:.0f} · oran {ppb_ratio:.2f}",
               delta_color="off")
 
     # 3) Nufus: olcegin GIRDISI (kirpilmis daire). Tum-sehir kalibrasyonu (0.94,

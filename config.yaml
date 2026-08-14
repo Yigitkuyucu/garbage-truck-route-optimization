@@ -30,10 +30,11 @@ region:
 # ------------------------------------------------------------
 # GARAJ ve DOKUM SAHASI (ayri iki nokta)
 # Rota: Garaj -> konteynerler -> Dokum -> Garaj
-# Kaynak: Gelibolu Belediyesi Temizlik Isleri (2026).
+# Konumlar yerel saha bilgisine dayanir; ikisi de calisma bolgesinin DISINDA
+# oldugu icin her seferde sabit bir "deadhead" (olu kilometre) uretirler.
 # ------------------------------------------------------------
 depot:
-  name: "Gelibolu Belediyesi Temizlik Isleri Garaji"
+  name: "Temizlik isleri garaji"
   coord: [40.42695777289317, 26.67026495956441]
 dump_site:
   name: "Kati atik dokum sahasi"
@@ -122,9 +123,11 @@ market_zones:
 containers:
   point_spacing_m: 55           # toplama noktasi izgara araligi (nokta yogunlugu)
   volume_l: 1100                # tek bin hacmi
-  # Provizyon GERCEK belediye yogunluguna baglanir (880 kont / 33062 MERKEZ ~= 38):
+  # Provizyon bir REFERANS yogunluga baglanir (~38 kisi/konteyner):
   #   yogunluk_bin = round(nokta_talebi / (target_people_per_bin * kisi_basi_litre))
-  # Boylece B0 gercek altyapiyi yansitir; gun/dolus dagilimi TALEPTEN dogal cikar.
+  # Boylece B0 mevcut altyapi olcegini yansitir ve modelin kendi kendine daha
+  # yogun bir altyapi uydurup tasarrufu sismesi engellenir (saman-adam yasagi);
+  # gun/dolus dagilimi TALEPTEN dogal cikar.
   target_people_per_bin: 38
   # Gurultu guvenlik marji: hicbir bin yuksek-gurultu gununde tasmasin diye
   #   guvenlik_bin = ceil(talep * (1 + noise_sigma_margin*sigma) / bin_hacmi)
@@ -145,7 +148,7 @@ fleet:
   num_vehicles: 7             # GIRDI, cikti degil
                               # EN KOTU GUNe gore boyutlandirildi (kat ort 3 kalibrasyonu):
                               # 90g+warmup x 10 seed gunluk toplam maks=148.442 L / 65.000
-                              # = 2.28 -> 3. Belediye oranina gore beklenti 2.2; fark
+                              # = 2.28 -> 3. Referans orana gore beklenti 2.2; fark
                               # 'gunde tek sefer' varsayimindan (rapor sinirlilik J-9).
 
 # ------------------------------------------------------------
@@ -253,16 +256,25 @@ abc:
                               # ("kisa 2-opt", E6). Tam 2-opt 187 dugumde cok yavas.
 
 # ------------------------------------------------------------
-# DOGRULAMA CAPALARI (belediye gercek operasyon verisi 2026)
+# DOGRULAMA CAPALARI
+#
+# Model bir SENTETIK talep zinciri kurar (bina -> sakin -> litre). Bu zincirin
+# gercekle temas ettigini gostermek icin uc bagimsiz capaya bakilir: nufus,
+# filo buyuklugu ve konteyner yogunlugu. Asagidaki referans degerler bu
+# karsilastirmanin PAYDASIDIR - modelin girdisi degil, sinavidir.
+#
+# Referans olcek degerleri bir ilce merkezi buyuklugunde tipik bir operasyona
+# aittir ve VARSAYIM olarak ele alinmalidir; bagimsiz bir sayimla
+# dogrulanmamislardir.
 # ------------------------------------------------------------
 validation:
   tuik_population: 33062       # TUIK ADNKS 2025 - Gelibolu MERKEZ nufusu
   population_tolerance: 2.0    # 2 kattan fazla sapma -> kat varsayimi hatali
-  # Belediye gercek operasyonu (2026): rakamlar MERKEZ icindir, tum ilce degil
-  municipality_population: 33062
-  municipality_trucks: 7        # 5 gunduz + 2 gece; belediye kendi topluyor
-  municipality_containers: 880  # -> 37.6 kisi/konteyner (merkez paydasiyla)
+  # Referans operasyon olcegi (merkez icin; tum ilce degil)
+  reference_population: 33062
+  reference_trucks: 7           # gunduz + gece vardiyasi toplami
+  reference_containers: 880     # -> 37.6 kisi/konteyner (merkez paydasiyla)
   anchor_tolerance: 2.0         # capa oran sapmasi (kamyon, konteyner) icin
   # Turetilen capalar (build'de hesaplanir):
-  #   beklenen_kamyon    = municipality_trucks * (calisma_nufus / municipality_population)
-  #   beklenen_konteyner = calisma_nufus / (municipality_population / municipality_containers)
+  #   beklenen_kamyon    = reference_trucks * (calisma_nufus / reference_population)
+  #   beklenen_konteyner = calisma_nufus / (reference_population / reference_containers)

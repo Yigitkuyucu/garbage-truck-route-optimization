@@ -45,7 +45,7 @@ def build_collection_points(bdem: pd.DataFrame, cfg: Config) -> pd.DataFrame:
     cell = ix * (iy.max() + 1) + iy
 
     vol_bin = cfg.containers.volume_l
-    # Bin basi hedef gunluk yuk = belediye yogunlugu (51 kisi) x kisi basi litre.
+    # Bin basi hedef gunluk yuk = referans yogunluk x kisi basi litre.
     bm = cfg.building_model
     per_person_l = bm.kg_per_person_day / bm.waste_density_kg_m3 * LITERS_PER_M3
     per_bin_load = cfg.containers.target_people_per_bin * per_person_l
@@ -65,7 +65,7 @@ def build_collection_points(bdem: pd.DataFrame, cfg: Config) -> pd.DataFrame:
         residents = float(res[m].sum())
         dom = _dominant_type(ctype[m], wm)
         mk = _weighted_market(mday[m], wm)
-        # Yogunluk bin'i (belediye 51 kisi/bin) + gurultu guvenlik bin'i, en yuksegi.
+        # Yogunluk bin'i (referans kisi/bin) + gurultu guvenlik bin'i, en yuksegi.
         density_bins = round(demand / per_bin_load)
         safety_bins = math.ceil(demand * noise_factor / vol_bin)
         n_bins = max(1, density_bins, safety_bins)

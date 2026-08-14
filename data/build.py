@@ -192,13 +192,13 @@ def health_report(cfg: Config, ds: BuiltDataset) -> list[str]:
     tol = cfg.validation.anchor_tolerance
     warnings: list[str] = []
 
-    # 1) Kamyon capasi (belediye orani: 7 * nufus/44689)
+    # 1) Kamyon capasi (referans oran uzerinden olceklenir)
     exp_t = a["trucks_expected"]
     if exp_t > 0 and not (1.0 / tol <= a["trucks"] / exp_t <= tol):
         warnings.append(
             f"KAMYON CAPASI: {a['trucks']:.0f} vs beklenen {exp_t:.1f} "
-            f"({cfg.validation.municipality_trucks} x nufus/"
-            f"{cfg.validation.municipality_population:,}). calisma alanini ayarla."
+            f"({cfg.validation.reference_trucks} x nufus/"
+            f"{cfg.validation.reference_population:,}). calisma alanini ayarla."
         )
 
     # 2) Bin dolus
@@ -208,7 +208,7 @@ def health_report(cfg: Config, ds: BuiltDataset) -> list[str]:
             f"{cfg.containers.volume_l} L. Yerlestirme yetersiz."
         )
 
-    # 3) Konteyner sayisi capasi (belediye orani: 51 kisi/konteyner)
+    # 3) Konteyner sayisi capasi (referans kisi/konteyner orani)
     exp_c = a["bins_expected"]
     if exp_c > 0 and not (1.0 / tol <= a["total_bins"] / exp_c <= tol):
         warnings.append(
@@ -273,11 +273,11 @@ def print_summary(cfg: Config, ds: BuiltDataset) -> None:
     print(f"  etkin kapasite     : {cap:,} L / kamyon")
     print("-" * 64)
     val = cfg.validation
-    print(f"  CAPALAR (belediye 2026, MERKEZ: {val.municipality_containers} kont / "
-          f"{val.municipality_trucks} kamyon / {val.municipality_population:,} kisi):")
+    print(f"  CAPALAR (referans olcek, MERKEZ: {val.reference_containers} kont / "
+          f"{val.reference_trucks} kamyon / {val.reference_population:,} kisi):")
     print(f"   1) kamyon          : {a['trucks']:.0f}     "
-          f"(beklenen {a['trucks_expected']:.1f} = {val.municipality_trucks} x "
-          f"nufus/{val.municipality_population:,})")
+          f"(beklenen {a['trucks_expected']:.1f} = {val.reference_trucks} x "
+          f"nufus/{val.reference_population:,})")
     print(f"   2) konteyner (bin) : {a['total_bins']:.0f}   "
           f"(beklenen {a['bins_expected']:.0f} @ {val.people_per_container:.0f} kisi/kont) "
           f"-> {a['people_per_bin']:.0f} kisi/bin")

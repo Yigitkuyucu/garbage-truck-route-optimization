@@ -17,24 +17,27 @@ verisi bu bölgenin gerçek OpenStreetMap verisidir, talep de o binalardan türe
 Bu ayrımın açık olması önemli, çünkü sonuçların ne kadar taşıdığını belirler.
 
 **Gerçek olan:** yol ağı ve bina geometrisi (OpenStreetMap), kişi başı atık üretimi
-ve bölge nüfusu (TÜİK), araç kapasitesi ve filo büyüklüğü.
+ve bölge nüfusu (TÜİK).
 
 **Gerçeğe yakın olan:** ölçek. Çalışma alanı, OSM'in kentsel doku poligonuyla
 kırpılır (5,07 km²) - yapay bir yarıçap değil, merkezin kendisi. Model 32.592
 sakin üretir; TÜİK merkez nüfusu 33.062 (%99). Filo ihtiyacı ortalama 5,1 /
-tepe 7,0 araç çıkar; belediyenin gerçek filosu 7 (5 gündüz + 2 gece).
+tepe 7,0 araç çıkar ve bu, bu büyüklükte bir merkez için beklenen mertebeyle
+tutarlıdır.
 
-**Sentetik olan:** konteynerlerin haritadaki **konumları**. Belediyenin gerçek
-koordinatları elimizde olmadığından toplama noktaları bina yoğunluğundan
-türetilir: bölge 55 m'lik ızgaraya bölünür, bina bulunan her hücre bir nokta
-olur ve nokta o hücrenin talep-ağırlıklı merkezine yerleşir. Yani konumlar
-rastgele değildir, ama gerçek konteyner konumları da değildir.
+**Sentetik olan:** konteynerlerin haritadaki **konumları**. Gerçek konteyner
+koordinatları açık veri olarak bulunmadığından toplama noktaları bina
+yoğunluğundan türetilir: bölge 55 m'lik ızgaraya bölünür, bina bulunan her hücre
+bir nokta olur ve nokta o hücrenin talep-ağırlıklı merkezine yerleşir. Yani
+konumlar rastgele değildir, ama gerçek konteyner konumları da değildir.
 Ölçek: **784 toplama noktası, 1.019 bin, 7 araç**.
 
-**Varsayım olan:** yakıt katsayıları. Belediyeden gerçek tüketim alınamadığı için
-literatürden türetilmiştir. Mutlak litre/CO₂ rakamları tahmindir; çözücüler arası
-**göreli** karşılaştırma ise tüm çözücüler aynı katsayıları paylaştığı için
-bu seçime büyük ölçüde dayanıklıdır.
+**Varsayım olan:** yakıt katsayıları ve referans operasyon ölçeği (konteyner
+sayısı, filo). Yakıt katsayıları literatürdeki saha ölçümlerinden türetilmiştir;
+mutlak litre/CO₂ rakamları tahmindir, çözücüler arası **göreli** karşılaştırma
+ise tüm çözücüler aynı katsayıları paylaştığı için bu seçime büyük ölçüde
+dayanıklıdır. Referans ölçek değerleri de bağımsız bir sayımla doğrulanmamıştır;
+modelin girdisi değil, sınandığı paydadır.
 
 ## Sonuç özeti
 

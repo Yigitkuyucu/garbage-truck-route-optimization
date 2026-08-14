@@ -1,6 +1,6 @@
 """B0 (sabit rota) + ortak greedy rota kurucu.
 
-B0 = mevcut belediye pratigi: her gun TUM konteynerler toplanir. Rota, en yakin
+B0 = mevcut sabit-rota pratigi: her gun TUM konteynerler toplanir. Rota, en yakin
 komsu (NN) sirasiyla kurulur (cografyaya bagli, gunden gune ayni sira) ve
 kapasiteye gore araclara bolunur.
 
