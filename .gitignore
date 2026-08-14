@@ -25,7 +25,6 @@ ops_state/*_ops.json
 # karar/kural gunlukleri stajin ciktisidir; bu depo yazilim projesidir.
 # Dosyalar diskte DURUYOR, yalnizca versiyonlanmiyor.
 /docs/
-/CLAUDE.md
 /DECISIONS.md
 
 # --- Deney ciktilari ---
@@ -41,7 +40,3 @@ ops_state/*_ops.json
 .idea/
 .DS_Store
 Thumbs.db
-
-# --- Claude Code: makineye ozel izin listesi (mutlak yol icerir) ---
-# launch.json PAYLASILIR (uygulamayi baslatir), settings.local.json paylasilmaz.
-.claude/settings.local.json

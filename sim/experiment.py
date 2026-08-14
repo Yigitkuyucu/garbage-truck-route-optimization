@@ -92,7 +92,7 @@ def make_solver(code: str, cfg: Config, time_limit: float, rng: np.random.Genera
 # parti 7, ikinci parti 3 surecle kosar - son seed'ler daha bos bir makinede
 # daha iyi cozum alir. Ortalama +/- standart sapma istatistigi bozulur.
 #
-# Bu yuzden CLAUDE.md Bolum 8'in "tek cekirdek, paralellik kapali" kurali
+# Bu yuzden deney protokolunun "tek cekirdek, paralellik kapali" kurali
 # bicimsel bir titizlik degil, tasiyici bir kisittir. Olculen %12'lik fark,
 # olcmeye calistigimiz etkiden (B2 vs B0) buyuk.
 #

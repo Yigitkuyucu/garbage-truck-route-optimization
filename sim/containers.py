@@ -3,7 +3,7 @@
     gunluk_dolus(konteyner) = temel_hiz x gun_carpani x (1 + N(0, sigma))
     pazar konteyneri, pazar gununde x market_surge_multiplier (D2)
 
-KABUK modulu. Tekrarlanabilirlik: tek global seed -> alt seed'ler (CLAUDE Bolum 12).
+KABUK modulu. Tekrarlanabilirlik: tek global seed -> alt seed'ler (proje kurali).
 
 Gun 0 = Pazartesi varsayimi (haftalik ritim + pazar gunleri icin).
 """

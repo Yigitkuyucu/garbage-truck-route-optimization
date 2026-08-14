@@ -4,7 +4,7 @@ Her gun:
   1. Cop uretilir (fill += generate), tasma kontrol edilir (fill > volume)
   2. must_visit hesaplanir (DOLULUK-FARKINDALIKLI, C4b: yarin tasacaksa VEYA
      hijyen tavanina ulastiysa)
-  3. build_problem -> solver.solve -> Evaluator (SINIR gecisi; CLAUDE Bolum 4)
+  3. build_problem -> solver.solve -> Evaluator (cekirdek/kabuk SINIR gecisi)
   4. Ziyaret edilen konteynerler toplanir (fill -> 0), days_since_visit guncellenir
   5. KPI kaydedilir (warm-up sonrasi)
 
