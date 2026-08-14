@@ -1,25 +1,50 @@
-"""Temsili tam kosu: 10 seed x 90 gun, dusuk cozucu limiti (per-container must_visit
-skip room'u belirledigi icin limit sonucu neredeyse degistirmez).
+"""Tam deney kosumu: config.yaml'daki butceyle, sonuclar runs/ altina.
 
-FAZ 2: manset metrik YAKIT/CO2. lambda SIFIRDAN turetilir -
-skip_penalty mL birimine gectigi icin Faz 1'in lambda'si TASINMAZ. Bu yuzden
-tarama 4 -> 12 noktaya cikarildi: Pareto egrisi raporun ana gorsellerinden biri.
+Butce ARTIK config.yaml'dadir; burada override YOKTUR. Boylece koda gomulu
+ikinci bir gercek olusmaz (kosulan sey ile config'te yazan sey ayni).
+
+Paralellik: bagimsiz seed'ler ayri SURECLERDE kosar. Adil butce protokolu
+korunur - kural cozucunun kendi icinde cok is parcacigi kullanmamasidir, ki
+iscilerde kapatiliyor. Isci sayisi:  ROTA_WORKERS=4 uv run python run_full.py
+
+Windows NOT: ProcessPoolExecutor surecleri bu dosyayi yeniden ice aktarir;
+__main__ korumasi OLMADAN her isci deneyi bastan baslatir. Kaldirma.
 """
+
+from __future__ import annotations
+
+import time
+
 from config import load_config
-from sim.experiment import run_experiment
+from sim.experiment import run_experiment, worker_count
 
-c = load_config().model_copy(deep=True)
-# ufuk: TAM (warmup 14 + report 90), 10 seed
-object.__setattr__(c.simulation, "warmup_days", 14)
-object.__setattr__(c.simulation, "report_days", 90)
-# lambda: Faz 2'de yeniden turetiliyor -> ince tarama (M.7 Adim 6)
-object.__setattr__(c.skip_penalty.lambda_sweep, "num", 12)
-# cozucu limitleri dusuruldu (temsili); yardimci kademeler az seed
-object.__setattr__(c.solvers, "time_limit_long_sec", 2)
-object.__setattr__(c.solvers, "time_limit_focused_sec", 8)
-object.__setattr__(c.solvers, "focused_days", 6)
-object.__setattr__(c.abc, "colony_size", 20)
 
-out = run_experiment(c, num_seeds=10, aux_seeds=2)
-print(f"BITTI: {out}")
-print((out / "health_report.txt").read_text(encoding="utf-8"))
+def main() -> None:
+    cfg = load_config()
+    s = cfg.skip_penalty.lambda_sweep
+    print("=" * 66)
+    print("  TAM DENEY")
+    print("=" * 66)
+    print(f"  bolge/kirpma : {cfg.region.name} / {cfg.region.clip_mode}")
+    print(f"  ufuk         : {cfg.simulation.warmup_days} warmup + "
+          f"{cfg.simulation.report_days} rapor gunu")
+    print(f"  replikasyon  : {cfg.simulation.num_seeds} seed")
+    print(f"  cozucu limiti: uzun {cfg.solvers.time_limit_long_sec} sn / "
+          f"odakli {cfg.solvers.time_limit_focused_sec} sn")
+    print(f"  lambda       : {s.num} nokta x {s.sweep_seeds} seed x {s.sweep_days} gun")
+    print(f"  filo         : {cfg.fleet.num_vehicles} arac")
+    print(f"  kosum        : SERI (isci={worker_count()}) - paralellik cozucu")
+    print("                 kalitesini dusurur, olculdu: DECISIONS M.10.6")
+    print("=" * 66, flush=True)
+
+    t0 = time.perf_counter()
+    out = run_experiment(cfg, num_seeds=cfg.simulation.num_seeds,
+                         aux_seeds=3, sens_seeds=2)
+    dt = time.perf_counter() - t0
+
+    print(f"\nBITTI ({dt / 3600:.2f} saat): {out}")
+    print((out / "health_report.txt").read_text(encoding="utf-8"))
+
+
+if __name__ == "__main__":
+    main()

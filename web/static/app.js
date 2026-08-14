@@ -141,6 +141,27 @@ function renderPlan(p) {
     `${p.solver_name} · ${p.routes.length} araç · ${fmt(k.stops)} durak`;
 }
 
+/* Plan gorunumunu BASLANGIC haline dondur.
+   Uygula ve sifirla sonrasi sunucudaki plan dusuyor; ekranda birakilan eski
+   KPI'lar ve durak listesi artik var olmayan bir plani gosterir. Daha kotusu,
+   CSV baglantisi acik kalirsa tiklandiginda 409 doner. Tek yerden temizlenir. */
+function clearPlanView(note) {
+  S.plan = null;
+  $('kpiStats').innerHTML =
+    `<div class="stat hero"><div class="k">Yakıt</div><div class="v">-</div></div>` +
+    stat('CO₂', '-') + stat('Durak', '-') + stat('Atlanan', '-') + stat('Mesafe', '-');
+  $('kpiDetail').innerHTML = `<p class="muted" style="margin:0">${note}</p>`;
+  $('planNotes').innerHTML = '';
+  $('mapHint').textContent = 'plan bekleniyor';
+  $('stopsWrap').innerHTML =
+    '<p class="muted" style="padding:14px">Plan hesaplanınca durak listesi burada görünür.</p>';
+  const dl = $('btnStops');
+  dl.style.pointerEvents = 'none';
+  dl.style.opacity = '.45';
+  $('btnApply').disabled = true;
+  drawIdle();
+}
+
 function renderStops(p) {
   if (!p.stops.length) {
     $('stopsWrap').innerHTML =
@@ -307,23 +328,21 @@ function wire() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ collection_date: $('applyDate').value }),
       }));
-      S.plan = null;
       renderFill(null);
-      $('planNotes').innerHTML = '';
-      $('kpiDetail').innerHTML =
-        '<p class="muted" style="margin:0">Plan uygulandı. Yeni gün için doluluk girin.</p>';
-      drawIdle();
+      clearPlanView('Plan uygulandı. Yeni gün için doluluk girin.');
       toast('Kaydedildi. Yarın kaldığı yerden devam eder.', 'ok');
     } catch (err) { toast(err.message, 'err'); }
     busy($('btnApply'), false, 'Uygula ve kaydet');
+    // busy() kosulsuz enable eder; uygulanacak plan yoksa kapali kalmali.
+    $('btnApply').disabled = !S.plan;
   });
 
   $('btnReset').addEventListener('click', async () => {
     if (!confirm('Tüm doluluk ve bekleme sayaçları sıfırlanacak, geçmiş silinecek. Emin misiniz?')) return;
     try {
       renderState(await api('/api/reset', { method: 'POST' }));
-      S.plan = null; renderFill(null); drawIdle();
-      $('planNotes').innerHTML = '';
+      renderFill(null);
+      clearPlanView('Plan hesaplanınca yakıt kalemleri burada görünür.');
       toast('Durum sıfırlandı.', 'ok');
     } catch (err) { toast(err.message, 'err'); }
   });

@@ -25,6 +25,10 @@ CACHE_DIR = Path("data/cache")
 # Bina poligonlarini getirirken kullanilan OSM etiketi
 _BUILDING_TAGS = {"building": True}
 
+# Kentsel doku etiketi. Merkez bir DAIRE degil, bir YERdir: calisma alani
+# yaricapla degil bu poligonla kirpilir (bkz. _clip_to_study).
+_URBAN_TAGS = {"landuse": "residential"}
+
 
 @dataclass(frozen=True)
 class OSMData:
@@ -32,6 +36,7 @@ class OSMData:
 
     graph: nx.MultiDiGraph          # yonlu yol agi (tek yon sokaklar dahil)
     buildings: gpd.GeoDataFrame     # bina poligonlari (WGS84, EPSG:4326)
+    urban: gpd.GeoDataFrame         # kentsel doku poligon(lari) (WGS84)
     region_key: str                 # cache anahtari
 
 
@@ -51,6 +56,10 @@ def _buildings_path(key: str) -> Path:
     return CACHE_DIR / f"{key}_buildings.parquet"
 
 
+def _urban_path(key: str) -> Path:
+    return CACHE_DIR / f"{key}_urban.parquet"
+
+
 def load_osm(region: Region, *, force_refresh: bool = False) -> OSMData:
     """Yol agi + binalari getir. Cache varsa diskten, yoksa OSMnx ile indir.
 
@@ -61,10 +70,15 @@ def load_osm(region: Region, *, force_refresh: bool = False) -> OSMData:
     gpath = _graph_path(key)
     bpath = _buildings_path(key)
 
-    if not force_refresh and gpath.exists() and bpath.exists():
-        graph = ox.io.load_graphml(gpath)
-        buildings = gpd.read_parquet(bpath)
-        return OSMData(graph=graph, buildings=buildings, region_key=key)
+    upath = _urban_path(key)
+
+    if not force_refresh and gpath.exists() and bpath.exists() and upath.exists():
+        return OSMData(
+            graph=ox.io.load_graphml(gpath),
+            buildings=gpd.read_parquet(bpath),
+            urban=gpd.read_parquet(upath),
+            region_key=key,
+        )
 
     center = region.center  # (lat, lon)
     graph = ox.graph_from_point(
@@ -82,10 +96,23 @@ def load_osm(region: Region, *, force_refresh: bool = False) -> OSMData:
     buildings = buildings[buildings.geometry.type.isin(["Polygon", "MultiPolygon"])]
     buildings = buildings.reset_index()
 
+    urban = _fetch_urban(center, region.radius_m)
+
     ox.io.save_graphml(graph, gpath)
     _write_buildings(buildings, bpath)
+    urban[["geometry"]].to_parquet(upath)
 
-    return OSMData(graph=graph, buildings=buildings, region_key=key)
+    return OSMData(graph=graph, buildings=buildings, urban=urban, region_key=key)
+
+
+def _fetch_urban(center: tuple[float, float], dist: int) -> gpd.GeoDataFrame:
+    """Kentsel doku poligonlari (landuse=residential). Bos donebilir."""
+    try:
+        g = ox.features_from_point(center, tags=_URBAN_TAGS, dist=dist)
+    except Exception:
+        return gpd.GeoDataFrame(geometry=[], crs="EPSG:4326")
+    g = g[g.geometry.type.isin(["Polygon", "MultiPolygon"])]
+    return gpd.GeoDataFrame(geometry=g.geometry.reset_index(drop=True), crs=g.crs)
 
 
 def _write_buildings(buildings: gpd.GeoDataFrame, path: Path) -> None:

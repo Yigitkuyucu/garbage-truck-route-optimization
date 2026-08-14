@@ -126,10 +126,17 @@ def test_time_uses_travel_time_not_dist() -> None:
     assert r.total_distance == 77  # mesafe travel_time'dan ETKILENMEZ
 
 
-def test_debug_false_hides_violations() -> None:
+def test_violations_reported_without_debug() -> None:
+    """Ihlal sebebi debug bayragindan BAGIMSIZ dondurulur.
+
+    Eskiden debug=False sebebi gizliyordu; metinler zaten kosulsuz uretildigi
+    icin bu hicbir sey kazandirmiyor, yalnizca prototip aracin "Plan
+    uygulanabilir degil" deyip nedenini soyleyememesine yol aciyordu.
+    """
     r = ev(make_problem(capacity=1), [[0, 1, 2]], debug=False)
-    assert not r.feasible  # fizibilite yine dogru
-    assert r.violations == ()  # ama detay yok
+    assert not r.feasible
+    assert r.violations  # sebep artik gorunur
+    assert any("kapasite" in v for v in r.violations)
 
 
 def test_all_skipped_empty_solution() -> None:

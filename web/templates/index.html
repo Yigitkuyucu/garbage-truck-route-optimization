@@ -84,14 +84,17 @@
           <label class="field"><span class="lbl">λ (atlama cezası)</span>
             <input type="number" id="lambda" step="0.05" min="0.01"></label>
           <label class="field"><span class="lbl">Süre limiti (sn)</span>
-            <input type="number" id="tlimit" value="10" min="1" max="120"></label>
+            <input type="number" id="tlimit" value="60" min="1" max="120"></label>
         </div>
         <button class="btn-primary btn-block" id="btnSolve" disabled>
           <span id="solveLabel">Bugünü çöz</span>
         </button>
         <p class="muted" style="margin:9px 0 0">
-          λ'nın bu kurulumda sonuca etkisi çok küçüktür - zorunlu ziyaret kuralı
-          kararı zaten belirler.
+          <b>OR-Tools süreye çok duyarlıdır:</b> bu ölçekte 60 saniyede en iyi
+          sonucu verir (sabit rotaya karşı −%24), 30 saniyede belirgin biçimde
+          zayıflar. Eşik kuralı ise anında çalışır ve süreden etkilenmez (−%18).
+          Acele etmiyorsanız <b>OR-Tools + 60 sn</b>, anlık cevap gerekiyorsa
+          <b>eşik kuralı</b>.
         </p>
       </div>
     </section>

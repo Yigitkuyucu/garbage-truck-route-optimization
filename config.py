@@ -33,11 +33,15 @@ class _Base(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
 
 
+ClipMode = Literal["urban_polygon", "circle"]
+
+
 class Region(_Base):
     name: str
     center: Coord
     radius_m: int = Field(gt=0)             # OSM indirme yaricapi (cache)
-    study_radius_m: int = Field(gt=0)       # calisma dairesi (binalar buna kirpilir)
+    study_radius_m: int = Field(gt=0)       # calisma dairesi (clip_mode=circle)
+    clip_mode: ClipMode = "urban_polygon"   # calisma alani nasil kirpilir
     network_type: str = "drive"
 
     @model_validator(mode="after")
@@ -188,6 +192,8 @@ class LambdaSweep(_Base):
     start: float = Field(gt=0)
     stop: float = Field(gt=0)
     num: int = Field(gt=1)
+    sweep_days: int = Field(gt=0)    # tarama ufku (tam ufka gerek yok)
+    sweep_seeds: int = Field(gt=0)   # tarama replikasyonu (istatistik degil, secim)
 
     @model_validator(mode="after")
     def _check_range(self) -> LambdaSweep:

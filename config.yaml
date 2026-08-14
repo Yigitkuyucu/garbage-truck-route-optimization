@@ -17,9 +17,14 @@ region:
   radius_m: 5500                    # OSMnx INDIRME yaricapi (bbox yari-kenar; kare).
                                     # Garaj (~1.9km) + dokum (~6.2km) grafta olsun diye
                                     # buyuk. Cache; degistirme = yeniden indir.
-  study_radius_m: 420               # CALISMA dairesi (binalar buna kirpilir).
-                                    # Kamyon capasi bu degeri belirler.
-                                    # Overflow olcekle degil yerlestirmeyle cozulur.
+  # CALISMA ALANI KIRPMASI
+  #   urban_polygon: OSM landuse=residential ana poligonu (GERCEK kentsel doku).
+  #                  Merkez bir daire degil bir YERdir; dogru olan budur.
+  #   circle       : study_radius_m yaricapli daire (yedek / karsilastirma).
+  clip_mode: urban_polygon
+  study_radius_m: 1500              # yalnizca clip_mode=circle iken kullanilir.
+                                    # Olculdu: 1500 m dairesi kentsel dokunun
+                                    # %99'unu kapsar (800 m yalnizca %70).
   network_type: "drive"             # tek yon sokaklar dahil
 
 # ------------------------------------------------------------
@@ -38,7 +43,14 @@ dump_site:
 # BINA -> SAKIN -> COP zinciri
 # ------------------------------------------------------------
 building_model:
-  m2_per_person: 30          # kat alani / bu = sakin sayisi
+  # Kat alani / bu = sakin sayisi. 30 -> 48 KALIBRE EDILDI (nufus capasi):
+  # kentsel poligonun tamami alindiginda 30 m2 degeri 52.148 kisi uretiyordu,
+  # TUIK merkez nufusu ise 33.062 (1,58 kat sisme). 48 m2 ile model 32.592
+  # kisi uretir (capa %99). Bu deger saf doluluk yogunlugu DEGILDIR: bos ve
+  # mevsimlik konutlari da soguran efektif bir orandir (Gelibolu kiyi kasabasi).
+  # Eski 30 degeri kucuk bir kesitte (r=420 m) makul gorunuyordu; alan
+  # buyuyunce sapma ortaya cikti.
+  m2_per_person: 48
   kg_per_person_day: 1.2     # TUIK atik uretim orani (kg/kisi/gun)
   waste_density_kg_m3: 120   # sikistirilmamis cop yogunlugu (kg/m3)
   # Kat sayisi: OSM building:levels varsa o kullanilir (Gelibolu'da %0!); yoksa
@@ -110,10 +122,10 @@ market_zones:
 containers:
   point_spacing_m: 55           # toplama noktasi izgara araligi (nokta yogunlugu)
   volume_l: 1100                # tek bin hacmi
-  # Provizyon GERCEK belediye yogunluguna baglanir (880 kont / 44689 kisi ~= 51):
+  # Provizyon GERCEK belediye yogunluguna baglanir (880 kont / 33062 MERKEZ ~= 38):
   #   yogunluk_bin = round(nokta_talebi / (target_people_per_bin * kisi_basi_litre))
   # Boylece B0 gercek altyapiyi yansitir; gun/dolus dagilimi TALEPTEN dogal cikar.
-  target_people_per_bin: 51
+  target_people_per_bin: 38
   # Gurultu guvenlik marji: hicbir bin yuksek-gurultu gununde tasmasin diye
   #   guvenlik_bin = ceil(talep * (1 + noise_sigma_margin*sigma) / bin_hacmi)
   #   n_bin = max(1, yogunluk_bin, guvenlik_bin)
@@ -130,7 +142,7 @@ vehicle:
   service_time_sec: 90        # servis suresi / konteyner
   shift_seconds: 28800        # vardiya (8 saat = 8*3600)
 fleet:
-  num_vehicles: 3             # GIRDI, cikti degil
+  num_vehicles: 7             # GIRDI, cikti degil
                               # EN KOTU GUNe gore boyutlandirildi (kat ort 3 kalibrasyonu):
                               # 90g+warmup x 10 seed gunluk toplam maks=148.442 L / 65.000
                               # = 2.28 -> 3. Belediye oranina gore beklenti 2.2; fark
@@ -195,7 +207,11 @@ skip_penalty:
   lambda_sweep:               # geometrik tarama
     start: 0.1
     stop: 10.0
-    num: 20
+    num: 4                    # 20 -> 4: tarama CALISMA NOKTASI secer, istatistik
+                              # uretmez. Olculdu (8 nokta x 2 seed): yakit lambda
+                              # ile monoton degismiyor, fark gurultu duzeyinde.
+    sweep_days: 30            # tarama TUM ufka gerek duymaz; tasmayi gormek yeter
+    sweep_seeds: 1            # tek seed yeterli - secim yapiyor, olcum degil
 
 # ------------------------------------------------------------
 # SIMULASYON
@@ -222,7 +238,9 @@ simulation:
 solvers:
   b1_threshold: 0.7           # B1 Esik+Greedy: doluluk > %70 topla
   # Iki kademeli deney protokolu (naif 90g*10seed*5*60sn=~75 saat):
-  time_limit_long_sec: 8      # UZUN sim (90 gun x 10 seed): amac KPI trendi
+  time_limit_long_sec: 30     # UZUN sim (90 gun x 10 seed): amac KPI trendi.
+                              # 30 sn OLCULDU: 784 dugumde B2 burada yakinsiyor,
+                              # 60 sn hicbir iyilesme vermiyor (ABC 10 sn'de platoda).
   time_limit_focused_sec: 60  # ODAKLI karsilastirma (temsili gunler): amac adil F2
   focused_days: 6             # odakli karsilastirmadaki temsili gun sayisi
 
@@ -238,12 +256,12 @@ abc:
 # DOGRULAMA CAPALARI (belediye gercek operasyon verisi 2026)
 # ------------------------------------------------------------
 validation:
-  tuik_population: 44689       # TUIK/nufusu.com Gelibolu merkez nufusu
+  tuik_population: 33062       # TUIK ADNKS 2025 - Gelibolu MERKEZ nufusu
   population_tolerance: 2.0    # 2 kattan fazla sapma -> kat varsayimi hatali
-  # Gelibolu Belediyesi gercek operasyonu (2026): tum sehir icin
-  municipality_population: 44689
+  # Belediye gercek operasyonu (2026): rakamlar MERKEZ icindir, tum ilce degil
+  municipality_population: 33062
   municipality_trucks: 7        # 5 gunduz + 2 gece; belediye kendi topluyor
-  municipality_containers: 880  # -> 51 kisi/konteyner
+  municipality_containers: 880  # -> 37.6 kisi/konteyner (merkez paydasiyla)
   anchor_tolerance: 2.0         # capa oran sapmasi (kamyon, konteyner) icin
   # Turetilen capalar (build'de hesaplanir):
   #   beklenen_kamyon    = municipality_trucks * (calisma_nufus / municipality_population)

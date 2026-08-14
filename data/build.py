@@ -28,13 +28,49 @@ from data.placement import build_collection_points, xy_to_latlon
 _LEVELS_SEED_TAG = 101
 
 
-def _clip_to_study(buildings_proj, cfg: Config, crs: str):
-    """Binalari calisma dairesine (study_radius_m) kirp."""
+def _clip_to_study(buildings_proj, cfg: Config, crs: str, urban=None):
+    """Binalari calisma alanina kirp.
+
+    clip_mode='urban_polygon' (varsayilan): OSM'in kentsel doku poligonu
+    kullanilir. Gerekce olculdu - "merkez" bir daire degildir: 800 m dairesi
+    Gelibolu merkezin kentsel dokusunun yalnizca %70'ini, 1500 m %99'unu
+    kapsiyordu. Poligon, yapay yaricap secimini tumden ortadan kaldirir.
+
+    clip_mode='circle': study_radius_m yaricapli daire (yedek/karsilastirma).
+    Kentsel poligon bulunamazsa da buna dusulur.
+    """
     ctr = latlon_to_xy([cfg.region.center], crs)[0]
+    if cfg.region.clip_mode == "urban_polygon" and urban is not None and len(urban):
+        poly = _main_urban_polygon(urban, crs, ctr)
+        if poly is not None:
+            import geopandas as gpd
+
+            pts = gpd.GeoSeries(
+                gpd.points_from_xy(buildings_proj["cx"], buildings_proj["cy"]), crs=crs
+            )
+            return buildings_proj[pts.within(poly).to_numpy()].copy()
     d = np.sqrt(
         (buildings_proj["cx"] - ctr[0]) ** 2 + (buildings_proj["cy"] - ctr[1]) ** 2
     )
     return buildings_proj[d <= cfg.region.study_radius_m].copy()
+
+
+def _main_urban_polygon(urban, crs: str, ctr):
+    """Merkezi iceren (yoksa merkeze en yakin) EN BUYUK kentsel poligon.
+
+    Gelibolu'da bu 5,07 km2'lik ana yerlesim dokusudur; geri kalanlar 2-8 km
+    uzaklikta koy/site poligonlaridir.
+    """
+    from shapely.geometry import Point
+
+    g = urban.to_crs(crs)
+    g = g[g.geometry.notna() & g.geometry.is_valid]
+    if g.empty:
+        return None
+    c = Point(ctr[0], ctr[1])
+    hit = g[g.geometry.contains(c)]
+    pool = hit if len(hit) else g
+    return pool.loc[pool.geometry.area.idxmax()].geometry
 
 
 def build_dataset(cfg: Config, *, force: bool = False, save: bool = True) -> BuiltDataset:
@@ -49,7 +85,7 @@ def build_dataset(cfg: Config, *, force: bool = False, save: bool = True) -> Bui
     osm = load_osm(cfg.region)
     graph_proj, crs = project_graph(osm.graph)
     buildings_proj = project_buildings(osm.buildings, crs)
-    buildings_proj = _clip_to_study(buildings_proj, cfg, crs)
+    buildings_proj = _clip_to_study(buildings_proj, cfg, crs, osm.urban)
 
     # Bina basi talep + siniflama (kat cekimi seed'den turetilir)
     rng = np.random.default_rng([cfg.seed, _LEVELS_SEED_TAG])
@@ -161,7 +197,8 @@ def health_report(cfg: Config, ds: BuiltDataset) -> list[str]:
     if exp_t > 0 and not (1.0 / tol <= a["trucks"] / exp_t <= tol):
         warnings.append(
             f"KAMYON CAPASI: {a['trucks']:.0f} vs beklenen {exp_t:.1f} "
-            f"(7 x nufus/44689). study_radius_m'i ayarla."
+            f"({cfg.validation.municipality_trucks} x nufus/"
+            f"{cfg.validation.municipality_population:,}). calisma alanini ayarla."
         )
 
     # 2) Bin dolus
@@ -191,8 +228,8 @@ def health_report(cfg: Config, ds: BuiltDataset) -> list[str]:
 
     tuik = cfg.validation.tuik_population
     warnings.append(
-        f"NUFUS (bilgi): calisma alani {a['population']:,.0f} kisi vs TUIK "
-        f"tum-sehir {tuik:,}. Alt-bolge oldugu icin kucuk beklenir."
+        f"NUFUS (bilgi): calisma alani {a['population']:,.0f} kisi vs TUIK merkez "
+        f"{tuik:,} (%{100 * a['population'] / tuik:.0f})."
     )
     return warnings
 
@@ -231,15 +268,18 @@ def print_summary(cfg: Config, ds: BuiltDataset) -> None:
     print("-" * 64)
     tuik = cfg.validation.tuik_population
     vol = cfg.containers.volume_l
-    print(f"  calisma alani nufus: {a['population']:,.0f}  (TUIK tum-sehir: {tuik:,})")
+    print(f"  calisma alani nufus: {a['population']:,.0f}  (TUIK merkez: {tuik:,})")
     print(f"  gunluk toplam talep: {a['total_daily']:,.0f} L")
     print(f"  etkin kapasite     : {cap:,} L / kamyon")
     print("-" * 64)
-    print("  CAPALAR (belediye 2026: 880 kont / 7 kamyon / 44689 kisi):")
+    val = cfg.validation
+    print(f"  CAPALAR (belediye 2026, MERKEZ: {val.municipality_containers} kont / "
+          f"{val.municipality_trucks} kamyon / {val.municipality_population:,} kisi):")
     print(f"   1) kamyon          : {a['trucks']:.0f}     "
-          f"(beklenen {a['trucks_expected']:.1f} = 7 x nufus/44689)")
+          f"(beklenen {a['trucks_expected']:.1f} = {val.municipality_trucks} x "
+          f"nufus/{val.municipality_population:,})")
     print(f"   2) konteyner (bin) : {a['total_bins']:.0f}   "
-          f"(beklenen {a['bins_expected']:.0f} @ 51 kisi/kont) "
+          f"(beklenen {a['bins_expected']:.0f} @ {val.people_per_container:.0f} kisi/kont) "
           f"-> {a['people_per_bin']:.0f} kisi/bin")
     print(f"   3) bin dolus ort   : {a['mean_bin_fill']:,.0f} L  "
           f"maks {a['max_bin_fill']:,.0f} L  (hacim {vol})")

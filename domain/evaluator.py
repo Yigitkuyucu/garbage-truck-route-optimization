@@ -141,7 +141,14 @@ _EMPTY_FLOAT: FloatArr = np.zeros(0, dtype=np.float64)
 
 
 class Evaluator:
-    """Tek dogruluk kaynagi. debug=True ihlalde arac/dugum/kisit detayi verir."""
+    """Tek dogruluk kaynagi.
+
+    `violations` HER ZAMAN doldurulur: ihlal metinleri zaten kosulsuz uretiliyor
+    (asagidaki dongulerde), `debug` yalnizca DONDURULUP dondurulmediklerini
+    belirliyordu. Yani debug=False bir sey kazandirmiyor, sadece sebebi
+    gizliyordu - prototip arac "Plan uygulanabilir degil" deyip nedenini
+    soyleyemiyordu. `debug` parametresi geriye donuk uyumluluk icin duruyor.
+    """
 
     def __init__(self, problem: VRPProblem, *, debug: bool = False) -> None:
         self._p = problem
@@ -221,7 +228,7 @@ class Evaluator:
             loads=np.array(loads, dtype=np.int64),
             times=np.array(times, dtype=np.int64),
             distances=np.array(dists, dtype=np.int64),
-            violations=tuple(violations) if self._debug else (),
+            violations=tuple(violations),
         )
 
 

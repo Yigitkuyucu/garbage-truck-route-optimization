@@ -26,7 +26,8 @@ from domain.evaluator import EvalResult, Evaluator
 from domain.problem import VRPProblem, build_problem
 from domain.solution import Solution
 from sim.containers import generate_daily_fills
-from solvers.base import Solver
+from solvers.base import NoFeasibleSolutionError, Solver
+from solvers.greedy import GreedySolver
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,7 @@ class DayRecord:
     overflow_l: int               # o gun hacmi asan toplam litre
     mean_fill_pct: float          # ziyaret edilenlerin toplama anindaki ort doluluk
     shift_util_pct: float         # en yuklu aracin vardiya kullanimi
+    solver_failed: bool = False   # cozucu cozum bulamadi -> greedy yedegi
 
 
 @dataclass
@@ -67,6 +69,7 @@ class RunResult:
     mass_ok: bool
     total_overflow_events: int
     infeasible_days: int = 0
+    solver_failures: int = 0      # cozucunun cozum bulamadigi gun sayisi
     per_day_details: dict[str, list[int]] = field(default_factory=dict)
 
 
@@ -99,6 +102,7 @@ class DayState:
     overflow_l: int
     mean_fill_pct: float
     shift_util_pct: float
+    solver_failed: bool = False   # cozucu cozum bulamadi -> greedy yedegi
 
 
 class Simulator:
@@ -148,6 +152,35 @@ class Simulator:
                 f"num_vehicles artir."
             )
 
+    def _initial_state(self, rng: np.random.Generator) -> tuple[np.ndarray, np.ndarray]:
+        """Baslangic dolulugu + bekleme sayaclari: FAZ-KADEMELI.
+
+        Her konteyner KENDI toplama cevriminde rastgele bir noktada baslar.
+        Hicbiri zorunlu dogmaz (faz < 1), dolayisiyla ilk gun toplu bir
+        "hepsi birden zorunlu" dalgasi olusmaz.
+
+        Gerekce (olculdu): "hepsi bos baslasin" varsayimi konteynerleri
+        SENKRONIZE ediyor; hepsi ayni anda dolup ayni gun zorunlu hale
+        geliyordu. Bu, warm-up'ta 7,24 araclik yapay bir tepe uretiyor ve
+        filoyu 8'e zorluyordu - oysa raporlanan 90 gunde tepe 6,58 (7 arac).
+        Faz-kademeli baslangicta tepe 6,32'ye iner ve filo, belediyenin gercek
+        7 aracina oturur. Gercekte de konteynerler bir sabah hep birden bos
+        degildir; bu varsayim modelin degil, kolay baslangicin urunuydu.
+
+        Warm-up gunleri zaten atildigi icin raporlanan KPI'lara etkisi minimaldir;
+        degistirdigi sey filo boyutlandirmasinin yapay tepeye takilmamasidir.
+        """
+        n = self._n
+        # Zorunlu olana kadar gecen gun: tasma tetikleyicisi ya da hijyen tavani
+        head = np.maximum(self._volume - self._predict_next, 0.0)
+        to_due = np.minimum(
+            self._hygiene_cap, head / np.maximum(self._ds.base_rate_l, 1e-9)
+        )
+        phase = rng.random(n)                       # cevrimde rastgele nokta [0,1)
+        fill = phase * to_due * self._ds.base_rate_l
+        days_since = np.floor(phase * self._hygiene_cap).astype(np.int64)
+        return fill.astype(np.float64), days_since
+
     def solve_day(
         self,
         fill: np.ndarray,
@@ -195,7 +228,18 @@ class Simulator:
             insertion_k=self._ins_k,
             **self._fuel_kwargs,
         )
-        solution = solver.solve(problem)
+        # Cozucu cozum bulamazsa gun KAYBEDILMEZ: greedy'ye dusulur ve gun
+        # ISARETLENIR. Gerekce: 90 gun x 10 seed x 5 cozucu suren bir deneyde tek
+        # bir zor gun tum kosuyu cope atmamali. Gercek operasyon da boyle davranir -
+        # optimizasyon yetismezse kamyonlar yine de cikar.
+        # Dusulen gun `solver_failed` ile kaydedilir, KPI ortalamalarina GIRMEZ
+        # (fizibil olmadigi icin) ve saglik raporunda sayilir. Sessizce yutulmaz.
+        solver_failed = False
+        try:
+            solution = solver.solve(problem)
+        except NoFeasibleSolutionError:
+            solver_failed = True
+            solution = GreedySolver(self._cfg.fleet.num_vehicles).solve(problem)
         result = Evaluator(problem).evaluate(solution)
         visited = solution.visited_mask(n)
 
@@ -224,6 +268,7 @@ class Simulator:
             overflow_l=overflow_l,
             mean_fill_pct=mean_fill_pct,
             shift_util_pct=shift_util,
+            solver_failed=solver_failed,
         )
 
     @staticmethod
@@ -241,7 +286,7 @@ class Simulator:
         rng: np.random.Generator,
         skip_lambda: float,
         collect: Callable[[DayState], None],
-    ) -> tuple[float, float, float, int, int]:
+    ) -> tuple[float, float, float, int, int, int]:
         """Gun dongusunun TEK kaynagi. Her gun bir DayState uretir, `collect`'e
         verir; kutle/tasma toplamlarini dondurur.
 
@@ -250,7 +295,6 @@ class Simulator:
         yaparken, deney istatistigi ile BIREBIR ayni gun dongusunu kullanir.
         """
         cfg = self._cfg
-        n = self._n
         horizon = cfg.simulation.warmup_days + cfg.simulation.report_days
         warmup = cfg.simulation.warmup_days
 
@@ -258,12 +302,15 @@ class Simulator:
             self._ds.base_rate_l, self._ds.market_day, cfg, rng, horizon
         )
 
-        fill = np.zeros(n, dtype=np.float64)
-        days_since = np.zeros(n, dtype=np.int64)
-        total_generated = 0.0
+        fill, days_since = self._initial_state(rng)
+        # Baslangic dolulugu MEVCUT stoktur; kutle denkleminin sol tarafina
+        # girer. Yoksa "uretilen = toplanan + kalan" esitligi baslangic stogu
+        # kadar acik verir (Bolum 10 kontrol #1 yanlis alarm verirdi).
+        total_generated = float(fill.sum())
         total_collected = 0.0
         total_overflow_events = 0
         infeasible_days = 0
+        solver_failures = 0
 
         for d in range(horizon):
             gen_today = daily_fills[d]
@@ -278,6 +325,8 @@ class Simulator:
             )
 
             total_collected += float(state.collected_l)
+            if state.solver_failed and not is_warmup:
+                solver_failures += 1
             if not state.result.feasible and not is_warmup:
                 infeasible_days += 1
             if not is_warmup:
@@ -295,6 +344,7 @@ class Simulator:
             remaining,
             total_overflow_events,
             infeasible_days,
+            solver_failures,
         )
 
     def run(self, solver: Solver, rng: np.random.Generator, skip_lambda: float) -> RunResult:
@@ -324,10 +374,11 @@ class Simulator:
                     overflow_l=s.overflow_l,
                     mean_fill_pct=s.mean_fill_pct,
                     shift_util_pct=s.shift_util_pct,
+                    solver_failed=s.solver_failed,
                 )
             )
 
-        gen, col, rem, overflow, infeasible = self._run_core(
+        gen, col, rem, overflow, infeasible, failures = self._run_core(
             solver, rng, skip_lambda, _collect
         )
         mass_ok = abs(gen - (col + rem)) < 1.0
@@ -339,6 +390,7 @@ class Simulator:
             mass_ok=mass_ok,
             total_overflow_events=overflow,
             infeasible_days=infeasible,
+            solver_failures=failures,
         )
 
     def replay(

@@ -1,7 +1,10 @@
 """sim/kpi.py testleri - toplama (feasible-only), saglik kontrolleri.
 
-FAZ 2 (M.7): manset metrik YAKIT. %30 kurali yakit uzerinden, yapisal tavan
-mesafe uzerinden (yan kontrol), ayrica yuk baglasimi capasi.
+FAZ 2 (M.7): manset metrik YAKIT. %30 kurali yakit uzerinden, bolge-ici
+tasarruf suphe esigi mesafe uzerinden (yan kontrol), ayrica yuk baglasimi capasi.
+
+M.11: "yapisal tavan" kontrolu bir kategori hatasiydi (pay ile tasarrufu
+kiyasliyordu); duzeltildi ve regresyon testi eklendi.
 """
 
 from __future__ import annotations
@@ -100,14 +103,37 @@ def test_health_check_thirty_percent_rule_on_fuel() -> None:
     assert any("%30 KURALI" in w for w in warns)
 
 
-def test_health_check_structural_ceiling() -> None:
-    # B0 intra 10, X1 intra 5 -> %50 tasarruf > %17+%3 tavan -> uyari
+def test_health_check_intra_saving_suspect() -> None:
+    # B0 intra 10, X1 intra 5 -> %50 tasarruf > %40 suphe esigi -> uyari
     b0 = aggregate("B0", "B0", [_run([_rec(0, feasible=True, intra_km=10.0)])],
                    co2_kg_per_l=CO2)
     x1 = aggregate("X1", "abc", [_run([_rec(0, feasible=True, intra_km=5.0)])],
                    co2_kg_per_l=CO2)
     warns = health_checks([b0, x1])
-    assert any("YAPISAL TAVAN" in w for w in warns)
+    assert any("BOLGE-ICI TASARRUF SUPHELI" in w for w in warns)
+
+
+def test_intra_saving_below_suspect_is_clean() -> None:
+    """M.11 kategori hatasi regresyonu: %26 bolge-ici tasarruf UYARI DEGILDIR.
+
+    Eski kod bunu "yapisal tavan %17 asildi" diye isaretliyordu; %17 aslinda
+    optimize-edilebilir PAY'di (bolge-ici/toplam), tasarruf esigi degil.
+    Gercek kosuda B1 tam bu degeri uretti ve yanlis alarm verdi.
+    """
+    b0 = aggregate("B0", "B0", [_run([_rec(0, feasible=True, intra_km=59.5)])],
+                   co2_kg_per_l=CO2)
+    b1 = aggregate("B1", "esik", [_run([_rec(0, feasible=True, intra_km=43.75)])],
+                   co2_kg_per_l=CO2)
+    warns = health_checks([b0, b1])
+    assert not any("BOLGE-ICI" in w for w in warns)
+
+
+def test_optimizable_share_is_measured_not_threshold() -> None:
+    """Optimize-edilebilir pay: bolge-ici / toplam (M.11). Olcum, esik degil."""
+    k = aggregate("B0", "B0", [_run([_rec(0, feasible=True, intra_km=59.5)])],
+                  co2_kg_per_l=CO2)
+    # _rec: total = intra + 50 km sabit -> 59.5 / 109.5
+    assert abs(k.optimizable_share - 59.5 / 109.5) < 1e-6
 
 
 def test_health_check_load_term_anchor() -> None:
@@ -122,7 +148,7 @@ def test_health_check_load_term_anchor() -> None:
 
 
 def test_health_check_clean() -> None:
-    # B0 10, X1 8.7 (%13 < %17); yakit esit; yuk terimi kucuk -> uyari yok
+    # B0 10, X1 8.7 (%13 < %40); yakit esit; yuk terimi kucuk -> uyari yok
     b0 = aggregate("B0", "B0", [_run([_rec(0, feasible=True, intra_km=10.0)])],
                    co2_kg_per_l=CO2)
     x1 = aggregate("X1", "abc", [_run([_rec(0, feasible=True, intra_km=8.7)])],

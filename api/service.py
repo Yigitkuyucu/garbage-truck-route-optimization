@@ -31,8 +31,12 @@ from sim.operations import OperationalState, stop_list
 ML_TO_L = 1000
 
 SOLVERS = [
-    {"code": "B2", "name": "OR-Tools", "note": "yakitta en iyi sonuc"},
-    {"code": "B1", "name": "Esik + greedy", "note": "naif kural, hizli"},
+    # Notlar OLCUME dayanir (10 seed x 90 gun; sabit rotaya karsi yakit):
+    #   60 sn -> B2 -%24, B1 -%18, X1 -%14, X2 -%11
+    #   30 sn -> B1 -%19, X1 -%14, B2 -%11 (B2 sure aclıgı ceker, 4 gun cozemedi)
+    # B2 sureye COK duyarli, B1 hic duyarli degil. Varsayilan limit bu yuzden 60 sn.
+    {"code": "B2", "name": "OR-Tools", "note": "en iyi sonuc - 60 sn verin"},
+    {"code": "B1", "name": "Esik + greedy", "note": "aninda, sureden etkilenmez"},
     {"code": "X1", "name": "ABC (temel)", "note": "projenin odak algoritmasi"},
     {"code": "X2", "name": "ABC + yerel arama", "note": "ablasyon varyanti"},
     {"code": "B0", "name": "Sabit rota", "note": "mevcut durum - hepsini toplar"},

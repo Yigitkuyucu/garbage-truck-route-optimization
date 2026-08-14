@@ -31,6 +31,7 @@ class SolverKPIs:
     name: str
     n_days_total: int         # 90 x seed
     infeasible_days: int      # ortalamalara KATILMAYAN gunler
+    solver_failures: int      # cozucunun cozum bulamayip greedy'ye dustugu gun
     # --- FAZ 2 MANSET: yakit + CO2 (feasible gunler ort±std) ---
     mean_fuel_l: float
     std_fuel_l: float
@@ -58,6 +59,18 @@ class SolverKPIs:
         if self.n_days_total == 0:
             return 0.0
         return self.infeasible_days / self.n_days_total * 90
+
+    @property
+    def optimizable_share(self) -> float:
+        """Optimize-EDILEBILIR pay: bolge-ici km / toplam km.
+
+        Yapisal bir OLCUM'dur, esik degil (M.11): geri kalani garaj-bolge-dokum
+        deadhead'idir ve hicbir cozucu ona dokunamaz. B0 uzerinde okunur;
+        tasarruf yuzdelerinin hangi payda uzerinde konustugunu belirler.
+        """
+        if self.mean_total_km <= 0:
+            return 0.0
+        return self.mean_intra_km / self.mean_total_km
 
 
 def aggregate(
@@ -89,6 +102,7 @@ def aggregate(
         name=name,
         n_days_total=n_days_total,
         infeasible_days=infeasible_days,
+        solver_failures=sum(r.solver_failures for r in per_seed),
         mean_fuel_l=_mean(fuel),
         std_fuel_l=_std(fuel),
         mean_co2_kg=_mean(fuel) * co2_kg_per_l,
@@ -112,10 +126,18 @@ def aggregate(
     )
 
 
-# Yapisal tavan: bolge ici optimize-edilebilir pay (~%17, olculdu). Bunu belirgin
-# asan tasarruf = senaryo karismis ya da hata (kullanici + H1).
-STRUCTURAL_CEILING = 0.17
-CEILING_WARN_MARGIN = 0.03  # tavani bu kadar asarsa uyar
+# BOLGE-ICI TASARRUF SUPHE ESIGI (M.11 - kategori hatasi duzeltildi)
+#
+# ONCEKI HALI HATALIYDI: sabit 0.17'ye "yapisal tavan" deniyor ve bolge-ici
+# TASARRUF yuzdesiyle karsilastiriliyordu. Oysa %17, F-KPI-a'da olculen
+# OPTIMIZE-EDILEBILIR PAY'di (bolge-ici km / toplam km) - bambaska bir
+# buyukluk. Iki farkli seyi kiyaslayan kontrol, olcek buyuyunce yanlis alarm
+# verdi (B1 %26 > %17). Pay artik %37 (784 nokta); tasarrufla iliskisi yok.
+#
+# DOGRU esik F-KPI-a'da zaten yaziliydi: bolge-ici tasarrufta %15-25 beklenir,
+# "%40+ cikarsa suphelen". H1'in %10-30 bandi MANSET metrige (yakit) uygulanir
+# ve o kontrol ayrica kosar (THIRTY_PCT_RULE).
+INTRA_SAVING_SUSPECT = 0.40
 
 # %30 KURALI: %30'dan buyuk tasarruf neredeyse her zaman hata isaretidir.
 # FAZ 2'de bu kural MANSET metrige (yakit) uygulanir.
@@ -158,20 +180,30 @@ def health_checks(kpis: list[SolverKPIs], b0_code: str = "B0") -> list[str]:
                     f"%10-30. Once saglik kontrolleri, sonra rapor. SUPHE BILDIR."
                 )
 
-    # 4. Yapisal tavan (bolge-ici mesafe) - Faz 1'den devralinan yan kontrol
+    # 4. Bolge-ici tasarruf suphe esigi (yan kontrol; manset kontrol #3'tur)
     if b0 is not None and b0.mean_intra_km > 0:
         for k in kpis:
             if k.code == b0_code:
                 continue
             saving = (b0.mean_intra_km - k.mean_intra_km) / b0.mean_intra_km
-            if saving > STRUCTURAL_CEILING + CEILING_WARN_MARGIN:
+            if saving > INTRA_SAVING_SUSPECT:
                 warnings.append(
-                    f"YAPISAL TAVAN ASIMI: {k.code} bolge-ici tasarruf %{saving * 100:.0f} "
-                    f"> tavan %{STRUCTURAL_CEILING * 100:.0f}. Senaryo karismis ya da hata "
-                    f"(H1 + %30 kurali). SUPHE BILDIR."
+                    f"BOLGE-ICI TASARRUF SUPHELI: {k.code} %{saving * 100:.0f} "
+                    f"> %{INTRA_SAVING_SUSPECT * 100:.0f}. F-KPI-a beklentisi %15-25. "
+                    f"Senaryo karismis ya da hata olabilir. SUPHE BILDIR."
                 )
 
-    # 5. Yuk baglasimi capasi (M.7): olculen terim yakitin ~%1'i olmali
+    # 5. Cozucu basarisizligi: greedy'ye dusulen gunler SESSIZ KALMAZ
+    for k in kpis:
+        if k.solver_failures:
+            pct = 100 * k.solver_failures / max(k.n_days_total, 1)
+            warnings.append(
+                f"COZUCU COZUM BULAMADI: {k.code} {k.solver_failures} gun "
+                f"(%{pct:.1f}) greedy yedegine dustu. O gunler fizibil sayilmaz ve "
+                f"ortalamalara girmez. Pay buyukse sure limiti yetersizdir."
+            )
+
+    # 6. Yuk baglasimi capasi (M.7): olculen terim yakitin ~%1'i olmali
     for k in kpis:
         if k.mean_fuel_l <= 0:
             continue

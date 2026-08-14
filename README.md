@@ -19,45 +19,64 @@ Bu ayrımın açık olması önemli, çünkü sonuçların ne kadar taşıdığ�
 **Gerçek olan:** yol ağı ve bina geometrisi (OpenStreetMap), kişi başı atık üretimi
 ve bölge nüfusu (TÜİK), araç kapasitesi ve filo büyüklüğü.
 
-**Gerçeğe yakın olan:** konteyner yoğunluğu. Toplama noktalarının kaç bin
-taşıyacağı, belediyenin bildirdiği konteyner/nüfus oranına çapalanmıştır; model
-bin başına ~44 kişi üretir, sahadaki oran ~38 kişidir (%16 sapma, aynı mertebe).
+**Gerçeğe yakın olan:** ölçek. Çalışma alanı, OSM'in kentsel doku poligonuyla
+kırpılır (5,07 km²) - yapay bir yarıçap değil, merkezin kendisi. Model 32.592
+sakin üretir; TÜİK merkez nüfusu 33.062 (%99). Filo ihtiyacı ortalama 5,1 /
+tepe 7,0 araç çıkar; belediyenin gerçek filosu 7 (5 gündüz + 2 gece).
 
 **Sentetik olan:** konteynerlerin haritadaki **konumları**. Belediyenin gerçek
-konteyner koordinatları elimizde olmadığından, toplama noktaları bina
-yoğunluğundan türetilir: bölge 55 m'lik bir ızgaraya bölünür, bina bulunan her
-hücre bir toplama noktası olur ve nokta, o hücredeki binaların talep-ağırlıklı
-merkezine yerleştirilir. Yani konumlar rastgele değildir, ama gerçek konteyner
-konumları da değildir. Çalışma alanı 420 m yarıçapında bir kesittir: 187 toplama
-noktası, toplam 322 bin, ~14.100 sakin.
+koordinatları elimizde olmadığından toplama noktaları bina yoğunluğundan
+türetilir: bölge 55 m'lik ızgaraya bölünür, bina bulunan her hücre bir nokta
+olur ve nokta o hücrenin talep-ağırlıklı merkezine yerleşir. Yani konumlar
+rastgele değildir, ama gerçek konteyner konumları da değildir.
+Ölçek: **784 toplama noktası, 1.019 bin, 7 araç**.
 
-**Varsayım olan:** yakıt katsayıları. Belediyeden gerçek yakıt tüketimi
-alınamadığı için literatürden türetilmiştir. Bu nedenle mutlak litre/CO₂
-rakamları tahmindir; çözücüler arası **göreli** karşılaştırma ise tüm çözücüler
-aynı katsayıları paylaştığı için bu seçime büyük ölçüde dayanıklıdır.
+**Varsayım olan:** yakıt katsayıları. Belediyeden gerçek tüketim alınamadığı için
+literatürden türetilmiştir. Mutlak litre/CO₂ rakamları tahmindir; çözücüler arası
+**göreli** karşılaştırma ise tüm çözücüler aynı katsayıları paylaştığı için
+bu seçime büyük ölçüde dayanıklıdır.
 
 ## Sonuç özeti
 
-5 çözücü eşit duvar saatiyle, 90 gün × 10 tekrar karşılaştırıldı.
-Manşet metrik **yakıt/CO₂**'dir.
+5 çözücü, 10 tekrar × 90 gün. Manşet metrik **yakıt/CO₂**'dir.
 
-| Kod | Çözücü | Yakıt (L/gün) | B0'a karşı | Durak |
-|---|---|---|---|---|
-| B0 | Sabit rota (mevcut durum) | 35,13 | - | 187,0 |
-| B1 | Eşik + greedy | 33,19 | −%5,5 | 143,2 |
-| **B2** | **OR-Tools** | **32,04** | **−%8,8** | 143,2 |
-| X1 | ABC (temel) | 33,70 | −%4,1 | 144,5 |
-| X2 | ABC + yerel arama | 33,87 | −%3,6 | 148,3 |
+Deney iki bütçede koşuldu ve **ikisi farklı sonuç verdi** - bu farkın kendisi
+bulgudur:
 
-Üç bulgu, olumsuz oldukları için gizlenmedi, sayısallaştırıldı:
+| Çözücü | 60 sn bütçe | 30 sn bütçe |
+|---|---|---|
+| Sabit rota (mevcut durum) | - | - |
+| **OR-Tools** | **−%24,4** | −%11,0 |
+| **Eşik + greedy** | −%18,5 | **−%18,7** |
+| ABC (temel) | −%14,3 | −%13,6 |
+| ABC + yerel arama | −%10,7 | −%9,1 |
 
-- **ABC'nin teorik avantaj alanı yok.** OR-Tools'un çözemediği yük–mesafe bağlaşımı
-  toplam yakıtın ~%1'i ve çözücüler arasında farklılaşmıyor. Yük momentinin %79'u
-  döküm bacağında ve sıralamayla değiştirilemez.
-- **Atlama cezası (λ) etkisiz.** Doluluk-farkındalıklı zorunlu ziyaret kuralı kararı
-  zaten belirliyor; çözücü atlayabildiği her konteyneri zaten atlıyor.
-- **En eyleme dönüştürülebilir bulgu algoritmik değil.** Mesafenin %84'ü garaj–bölge–döküm
-  gidiş-gelişi. Asıl kaldıraç rotalama değil, **tesis konumlandırması**.
+**OR-Tools süreye çok duyarlıdır.** 784 konteynerlik problemde 60 saniyede açık
+ara en iyi sonucu verir; 30 saniyede belirgin biçimde zayıflar ve 900 günün
+4'ünde hiç çözüm bulamaz. **Eşik kuralı ise süreden hiç etkilenmez** (−%18,5 ve
+−%18,7) çünkü tek bir kuraldır, arama yapmaz.
+
+Pratik sonucu şudur: günlük planlamada 60 saniye beklemek sorun değilse OR-Tools,
+anlık cevap gerekiyorsa eşik kuralı. Karar destek aracı bu yüzden varsayılan
+olarak OR-Tools + 60 saniye ile gelir.
+
+Diğer bulgular:
+
+- **ABC'nin teorik avantaj alanı yok.** OR-Tools'un çözemediği yük-mesafe
+  bağlaşımı toplam yakıtın %1'inin altında (%0,51–0,84) ve çözücüler arasında
+  farklılaşmıyor. Yük momentinin %79'u döküm bacağında ve sıralamayla
+  değiştirilemez.
+- **Naif eşik kuralı, projenin odak algoritmasını (ABC) geçiyor.** Her metrikte
+  ve her bütçede. Olumsuz olduğu için gizlenmedi.
+- **Hijyen tavanı bir güvenlik parametresi, tasarruf kaldıracı değil.**
+  3 gün → −%18,7, 5 gün → −%24,2, 7 gün → −%19,2. Beklenen monoton davranış
+  yok (7 gün, 5 günden kötü), yani tavanı gevşetmek güvenilir bir kazanç
+  getirmiyor. Çalışma noktası en muhafazakâr değerde (3 gün) bırakıldı.
+- **Taşma sıfır değil: garanti olasılıksal.** 900 günde iki olay (B1 ve X1'de
+  birer tane). Güvenlik kuralı taşmayı imkânsız kılmıyor, olasılığını `k` ile
+  belirliyor. Ölçüldü: k=4 → 1 olay, k=5 → 0 (bedeli günde ~36 ek durak).
+- **Deadhead toplam mesafenin %63'ü.** Optimize edilebilir pay %37; en büyük
+  kaldıraç algoritma değil, döküm sahasının konumu.
 
 ## Kurulum
 

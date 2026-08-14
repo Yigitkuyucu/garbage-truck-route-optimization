@@ -43,6 +43,15 @@ from domain.problem import VRPProblem
 from domain.solution import Solution
 from solvers.base import NoFeasibleSolutionError, Solver
 
+# Ilk-cozum stratejisi zinciri (sirayla denenir; ilk basarili olan kullanilir).
+# PARALLEL_CHEAPEST_INSERTION buyuk ve sikisik orneklerde tek calisan seceneklerden
+# biri; PATH_CHEAPEST_ARC kucuk orneklerde hizli ve iyi baslangic verir.
+_FIRST_SOLUTION_CHAIN = (
+    routing_enums_pb2.FirstSolutionStrategy.PARALLEL_CHEAPEST_INSERTION,
+    routing_enums_pb2.FirstSolutionStrategy.LOCAL_CHEAPEST_INSERTION,
+    routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC,
+)
+
 
 class ORToolsSolver(Solver):
     """B2 - OR-Tools referans ust siniri."""
@@ -121,25 +130,45 @@ class ORToolsSolver(Solver):
                 routing.AddDisjunction([node_index], int(problem.skip_penalty[c]))
 
         params = pywrapcp.DefaultRoutingSearchParameters()
-        params.first_solution_strategy = (
-            routing_enums_pb2.FirstSolutionStrategy.PATH_CHEAPEST_ARC
-        )
-        params.local_search_metaheuristic = (
-            routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
-        )
-        params.time_limit.FromSeconds(self._time_limit)
+        # Ilk-cozum stratejisi SIRAYLA denenir. Gerekce olculdu: 465 dugum ve
+        # ~%90 kapasite kullaniminda PATH_CHEAPEST_ARC 120 sn'de bile fizibil
+        # cozum bulamiyor; ekleme (insertion) tabanli stratejiler buluyor.
+        # Kucuk orneklerde ilk strateji zaten hemen basarili olur, dolayisiyla
+        # zincir yalnizca zor orneklerde devreye girer.
+        assignment = None
+        for strategy in _FIRST_SOLUTION_CHAIN:
+            params = pywrapcp.DefaultRoutingSearchParameters()
+            params.first_solution_strategy = strategy
+            params.local_search_metaheuristic = (
+                routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
+            )
+            params.time_limit.FromSeconds(self._time_limit)
+            assignment = routing.SolveWithParameters(params)
+            if assignment is not None:
+                break
 
-        assignment = routing.SolveWithParameters(params)
         if assignment is None:
             # Bos rota DONDURULMEZ: "0 mesafe / %100 tasarruf" gibi gorunur ve bir
             # hatayi zafer kiligina sokar.
             self._last_objective = 0
-            total = int(problem.demand.sum())
+            # Mesaj SEBEBI soylesin: baglayan sey zorunlu ziyaret yuku mu, yoksa
+            # cozucunun sure limiti mi? Ikisi tamamen farkli mudahale gerektirir.
+            fleet_l = self._num_vehicles * problem.capacity
+            mandatory = int(problem.demand[problem.must_visit].sum())
+            need = mandatory / problem.capacity
+            cause = (
+                "KAPASITE: zorunlu yuk filoyu asiyor -> num_vehicles artir"
+                if mandatory > fleet_l
+                else f"SURE LIMITI: kapasite yeterli ({need:.2f} <= "
+                     f"{self._num_vehicles} arac) ama cozucu {self._time_limit} sn'de "
+                     f"cozum bulamadi -> limiti artir"
+            )
             raise NoFeasibleSolutionError(
-                f"OR-Tools fizibil cozum bulamadi: {n} konteyner, "
-                f"gunluk talep {total:,} L, filo {self._num_vehicles} x "
-                f"{problem.capacity:,} L = {self._num_vehicles * problem.capacity:,} L. "
-                f"Talep filo kapasitesini asiyorsa num_vehicles artirilmali."
+                f"OR-Tools fizibil cozum bulamadi. SEBEP -> {cause}. "
+                f"[{n} nokta, zorunlu {int(problem.must_visit.sum())} nokta / "
+                f"{mandatory:,} L = {need:.2f} arac, filo {self._num_vehicles} x "
+                f"{problem.capacity:,} L = {fleet_l:,} L, "
+                f"toplam doluluk {int(problem.demand.sum()):,} L]"
             )
         self._last_objective = int(assignment.ObjectiveValue())
 

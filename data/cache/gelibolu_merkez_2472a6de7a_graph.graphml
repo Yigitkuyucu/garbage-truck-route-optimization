@@ -8306,7 +8306,7 @@
     <edge source="1447248061" target="6911989359" id="0">
       <data key="d9">[131510728, 131510726, 833214894]</data>
       <data key="d10">tertiary</data>
-      <data key="d13">['Karayokuş Caddesi', 'Şehit İsmail Türe Caddesi']</data>
+      <data key="d13">['Şehit İsmail Türe Caddesi', 'Karayokuş Caddesi']</data>
       <data key="d14">False</data>
       <data key="d16">False</data>
       <data key="d17">75.8440196685918</data>
@@ -10624,7 +10624,7 @@
     <edge source="1613474739" target="6222572376" id="0">
       <data key="d9">[664793849, 844653143]</data>
       <data key="d10">residential</data>
-      <data key="d13">['Gelibolu Küçük Sanayi Sitesi', 'Küçük Sanayi 15. Sokak']</data>
+      <data key="d13">['Küçük Sanayi 15. Sokak', 'Gelibolu Küçük Sanayi Sitesi']</data>
       <data key="d14">False</data>
       <data key="d16">False</data>
       <data key="d17">175.31804929999797</data>
@@ -11878,7 +11878,7 @@
     <edge source="1613474982" target="3296655415" id="0">
       <data key="d9">[322874870, 738188494]</data>
       <data key="d10">residential</data>
-      <data key="d13">['Kore Kahramanlar 2. Sokak', 'Yağcı Hızır Sokak']</data>
+      <data key="d13">['Yağcı Hızır Sokak', 'Kore Kahramanlar 2. Sokak']</data>
       <data key="d14">False</data>
       <data key="d16">[False, True]</data>
       <data key="d17">203.41071174053573</data>
@@ -13825,7 +13825,7 @@
     <edge source="3296655313" target="3296653721" id="0">
       <data key="d9">[322874817, 322874892]</data>
       <data key="d10">residential</data>
-      <data key="d13">['Hükümet Caddesi', 'Belediye Caddesi']</data>
+      <data key="d13">['Belediye Caddesi', 'Hükümet Caddesi']</data>
       <data key="d14">True</data>
       <data key="d16">False</data>
       <data key="d17">182.5236230925578</data>
@@ -14744,7 +14744,7 @@
     <edge source="3296655415" target="1613474982" id="0">
       <data key="d9">[738188494, 322874870]</data>
       <data key="d10">residential</data>
-      <data key="d13">['Kore Kahramanlar 2. Sokak', 'Yağcı Hızır Sokak']</data>
+      <data key="d13">['Yağcı Hızır Sokak', 'Kore Kahramanlar 2. Sokak']</data>
       <data key="d14">False</data>
       <data key="d16">[False, True]</data>
       <data key="d17">203.41071174053576</data>
@@ -22944,8 +22944,8 @@
       <data key="d9">[700192256, 1356045964, 1356045965, 1356010735, 1326360185]</data>
       <data key="d10">motorway_link</data>
       <data key="d11">4</data>
-      <data key="d12">['70', '20', '50', '30']</data>
-      <data key="d13">['Gelibolu Güney Kavşağı', 'Gelibolu Güney 1 Kavşağı']</data>
+      <data key="d12">['20', '30', '70', '50']</data>
+      <data key="d13">['Gelibolu Güney 1 Kavşağı', 'Gelibolu Güney Kavşağı']</data>
       <data key="d14">True</data>
       <data key="d16">False</data>
       <data key="d17">1080.810894017289</data>
@@ -22978,8 +22978,8 @@
       <data key="d9">[1356045962, 1356045963, 1356010736, 1326360184, 700192255]</data>
       <data key="d10">motorway_link</data>
       <data key="d11">4</data>
-      <data key="d12">['70', '20', '50', '30']</data>
-      <data key="d13">['Gelibolu Güney Kavşağı', 'Gelibolu Güney 1 Kavşağı']</data>
+      <data key="d12">['20', '30', '70', '50']</data>
+      <data key="d13">['Gelibolu Güney 1 Kavşağı', 'Gelibolu Güney Kavşağı']</data>
       <data key="d14">True</data>
       <data key="d16">False</data>
       <data key="d17">986.1513197109946</data>
@@ -23569,7 +23569,7 @@
     <edge source="6911989359" target="1447248061" id="0">
       <data key="d9">[131510728, 833214894, 131510726]</data>
       <data key="d10">tertiary</data>
-      <data key="d13">['Karayokuş Caddesi', 'Şehit İsmail Türe Caddesi']</data>
+      <data key="d13">['Şehit İsmail Türe Caddesi', 'Karayokuş Caddesi']</data>
       <data key="d14">False</data>
       <data key="d16">True</data>
       <data key="d17">75.8440196685918</data>
@@ -24958,7 +24958,7 @@
     <edge source="6912015462" target="6912015461" id="0">
       <data key="d9">[844653137, 844653139, 738188508]</data>
       <data key="d10">residential</data>
-      <data key="d13">['Küçük Sanayi 8. Sokak', 'Gelibolu Küçük Sanayi Sitesi']</data>
+      <data key="d13">['Gelibolu Küçük Sanayi Sitesi', 'Küçük Sanayi 8. Sokak']</data>
       <data key="d14">False</data>
       <data key="d16">[False, True]</data>
       <data key="d17">160.64441133147767</data>
@@ -28786,7 +28786,7 @@
     <edge source="9893124522" target="9893124522" id="0">
       <data key="d9">[1456203488, 1079212547, 1079212548]</data>
       <data key="d10">residential</data>
-      <data key="d13">['Göçmen Evleri 1. Aralık Sokak', 'Göçmen Evleri Sokak']</data>
+      <data key="d13">['Göçmen Evleri Sokak', 'Göçmen Evleri 1. Aralık Sokak']</data>
       <data key="d14">False</data>
       <data key="d16">[False, True]</data>
       <data key="d17">188.07057311114355</data>
@@ -28795,7 +28795,7 @@
     <edge source="9893124522" target="9893124522" id="1">
       <data key="d9">[1456203488, 1079212547, 1079212548]</data>
       <data key="d10">residential</data>
-      <data key="d13">['Göçmen Evleri 1. Aralık Sokak', 'Göçmen Evleri Sokak']</data>
+      <data key="d13">['Göçmen Evleri Sokak', 'Göçmen Evleri 1. Aralık Sokak']</data>
       <data key="d14">False</data>
       <data key="d16">[False, True]</data>
       <data key="d17">188.07057311114357</data>
@@ -31915,7 +31915,7 @@
       <data key="d17">2.6409088809922916</data>
       <data key="d19">LINESTRING (26.6537499 40.4125131, 26.6537621 40.4125058, 26.6537774 40.4125032)</data>
     </edge>
-    <data key="d0">2026-07-20 14:56:31</data>
+    <data key="d0">2026-08-11 01:32:31</data>
     <data key="d1">OSMnx 2.1.0</data>
     <data key="d2">epsg:4326</data>
     <data key="d3">True</data>
