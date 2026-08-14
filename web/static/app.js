@@ -50,6 +50,16 @@ function stat(k, v, sub) {
     <div class="v">${v}${sub ? `<small>${sub}</small>` : ''}</div></div>`;
 }
 
+/* Cozucu KODUNU (B2, X1...) kullanicinin gordugu ada cevir.
+   Gecmis tablosuna ham kod yaziliyordu; "B2" araci kullanan belediye
+   calisani icin bir sey ifade etmiyor. Ad tek kaynaktan gelir
+   (api/service.py SOLVERS), boylece menu ile gecmis ayrisamaz.
+   Kod taninmazsa kodun kendisi gosterilir - eski kayitlar kaybolmaz. */
+function solverName(code) {
+  const s = (S.boot?.solvers || []).find((x) => x.code === code);
+  return s ? s.name : code;
+}
+
 /* ------------------------------------------------------------------- durum */
 
 function renderState(st) {
@@ -67,7 +77,7 @@ function renderState(st) {
     return;
   }
   const rows = st.history.map((h) => `<tr>
-      <td>${h.tarih}</td><td>${h.cozucu}</td>
+      <td>${h.tarih}</td><td>${solverName(h.cozucu)}</td>
       <td class="num">${fmt(h.durak)}</td>
       <td class="num">${fmt(h.yakit_l, 1)}</td>
       <td class="num">${fmt(h.mesafe_km, 1)}</td>

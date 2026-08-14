@@ -30,16 +30,26 @@ from sim.operations import OperationalState, stop_list
 
 ML_TO_L = 1000
 
+# Aracin kullanicisi bir belediye calisanidir, arastirmaci degil. Adlar bu yuzden
+# once ISI anlatir, teknik kimlik parantezde kalir: rapordaki "OR-Tools" ya da
+# "ABC" ile eslesmeye devam etsin ama menuye bakan kisi ne sectigini bilsin.
+# Kodlar (B0/B1/B2/X1/X2) yalnizca API ve deney tarafinda yasar; arayuzde gorunmez.
 SOLVERS = [
     # Notlar OLCUME dayanir (10 seed x 90 gun; sabit rotaya karsi yakit):
     #   60 sn -> B2 -%24, B1 -%18, X1 -%14, X2 -%11
     #   30 sn -> B1 -%19, X1 -%14, B2 -%11 (B2 sure aclıgı ceker, 4 gun cozemedi)
     # B2 sureye COK duyarli, B1 hic duyarli degil. Varsayilan limit bu yuzden 60 sn.
-    {"code": "B2", "name": "OR-Tools", "note": "en iyi sonuc - 60 sn verin"},
-    {"code": "B1", "name": "Esik + greedy", "note": "aninda, sureden etkilenmez"},
-    {"code": "X1", "name": "ABC (temel)", "note": "projenin odak algoritmasi"},
-    {"code": "X2", "name": "ABC + yerel arama", "note": "ablasyon varyanti"},
-    {"code": "B0", "name": "Sabit rota", "note": "mevcut durum - hepsini toplar"},
+    # name/note KULLANICIYA gorunur -> duzgun Turkce yazilir (kod yorumlari ASCII).
+    {"code": "B2", "name": "Gelişmiş optimizasyon (OR-Tools)",
+     "note": "en iyi sonuç, 60 sn verin"},
+    {"code": "B1", "name": "Eşik kuralı (hızlı)",
+     "note": "anında, süreden etkilenmez"},
+    {"code": "X1", "name": "Arı kolonisi (ABC)",
+     "note": "projenin odak algoritması"},
+    {"code": "X2", "name": "Arı kolonisi + iyileştirme (ABC-LS)",
+     "note": "ablasyon varyantı"},
+    {"code": "B0", "name": "Sabit rota (mevcut yöntem)",
+     "note": "hepsini toplar"},
 ]
 SOLVER_NAMES = {s["code"]: s["name"] for s in SOLVERS}
 
