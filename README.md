@@ -4,12 +4,10 @@
 **simülatör** ve üzerine kurulu bir **prototip karar destek aracı**.
 
 Amaç, doluluk-tabanlı akıllı toplamanın mevcut sabit rotaya kıyasla sağladığı
-kazancı **dürüstçe ölçmektir** - kazandırmak değil, ölçmek.
+kazancı ölçmektir.
 
 Karşılaştırılan yöntemler: bir eşik kuralı, iki metasezgisel (Yapay Arı Kolonisi
-/ ABC) ve referans üst sınır olarak Google OR-Tools. Hiçbiri makine öğrenmesi
-değildir; hepsi arama ve sezgisel optimizasyon ailesindendir - eğitim verisi,
-model ya da öğrenilen ağırlık yoktur.
+/ ABC) ve referans üst sınır olarak Google OR-Tools.
 
 Çalışma, Çanakkale'nin Gelibolu ilçe merkezinde yürütülmüştür: yol ağı ve bina
 verisi bu bölgenin gerçek OpenStreetMap verisidir, talep de o binalardan türetilir.
@@ -72,12 +70,9 @@ arı metaforuyla (işçi / gözcü / kâşif) çözüm uzayını tarar; GLS **te
 çözüm tutar ve ceza biriktirerek yön değiştirir. İkisi de aynı yerel hamle
 ailesini kullanır.
 
-> **Hiçbiri makine öğrenmesi değildir.** Eğitim verisi, model ya da öğrenilen
-> ağırlık yoktur; hepsi klasik arama ve sezgisel optimizasyon yöntemleridir.
-> Aynı girdi ve aynı bütçeyle aynı işi yaparlar. Aradaki asıl performans farkının
-> bir kısmı da algoritmik değildir: OR-Tools C++ çekirdekte, ABC saf Python'da
-> çalışır ve eşit duvar saati protokolü bu yüzden ABC'yi dezavantajlı konuma
-> sokar.
+> **Not:** aradaki performans farkının bir kısmı algoritmik değildir. OR-Tools
+> C++ çekirdekte, ABC saf Python'da çalışır; eşit duvar saati protokolü bu
+> yüzden ABC'yi dezavantajlı konuma sokar.
 
 ## Sonuç özeti
 
