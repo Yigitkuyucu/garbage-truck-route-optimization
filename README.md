@@ -3,8 +3,13 @@
 Çöp konteynerlerinin doluluk oranlarına göre günlük toplama rotası hesaplayan bir
 **simülatör** ve üzerine kurulu bir **prototip karar destek aracı**.
 
-Amaç, ABC (Artificial Bee Colony) algoritmasının mevcut sabit rotaya kıyasla sağladığı
+Amaç, doluluk-tabanlı akıllı toplamanın mevcut sabit rotaya kıyasla sağladığı
 kazancı **dürüstçe ölçmektir** - kazandırmak değil, ölçmek.
+
+Karşılaştırılan yöntemler: bir eşik kuralı, iki metasezgisel (Yapay Arı Kolonisi
+/ ABC) ve referans üst sınır olarak Google OR-Tools. Hiçbiri makine öğrenmesi
+değildir; hepsi arama ve sezgisel optimizasyon ailesindendir - eğitim verisi,
+model ya da öğrenilen ağırlık yoktur.
 
 Çalışma, Çanakkale'nin Gelibolu ilçe merkezinde yürütülmüştür: yol ağı ve bina
 verisi bu bölgenin gerçek OpenStreetMap verisidir, talep de o binalardan türetilir.
@@ -38,6 +43,41 @@ mutlak litre/CO₂ rakamları tahmindir, çözücüler arası **göreli** karş�
 ise tüm çözücüler aynı katsayıları paylaştığı için bu seçime büyük ölçüde
 dayanıklıdır. Referans ölçek değerleri de bağımsız bir sayımla doğrulanmamıştır;
 modelin girdisi değil, sınandığı paydadır.
+
+## Çözücüler nasıl çalışıyor?
+
+Beşi de aynı arayüzü uygular (`solve(problem) -> solution`) ve maliyetleri aynı
+bağımsız değerlendiriciden geçer; simülatör hangisinin koştuğunu bilmez.
+
+| Kod | Yöntem | Nasıl karar veriyor |
+|---|---|---|
+| `B0` | Sabit rota | Her gün **tüm** konteynerlere gider. Rota en yakın komşu ile kurulur. Mevcut durumun temsili. |
+| `B1` | Eşik + greedy | Tek kural: doluluk %70'in üstündeyse topla. Arama yapmaz, anında sonuç verir. |
+| `B2` | Google OR-Tools | Kısıt programlama + **Guided Local Search**. Referans üst sınır. |
+| `X1` | Yapay Arı Kolonisi (ABC) | Popülasyon tabanlı metasezgisel; projenin odak algoritması. |
+| `X2` | ABC + yerel arama | X1 üzerine kısa 2-opt. Ablasyon varyantı. |
+
+**OR-Tools (B2)** üç adımda çalışır. Önce problem bir kısıt modeline çevrilir:
+düğümler, ark maliyetleri ve üzerlerinde üst sınır olan "boyutlar" (kapasite,
+vardiya süresi); atlanabilir konteynerler *disjunction* olarak tanımlanır - "bu
+düğümü ziyaret et ya da şu cezayı öde". Ardından açgözlü bir sezgisel ilk fizibil
+çözümü kurar (konteyneri maliyeti en az artıracak yere yerleştirerek). Asıl iş
+son adımdadır: **Guided Local Search** rotaya yerel hamleler uygular (2-opt,
+or-opt, relocate, swap) ve yerel optimuma takıldığında o çözümdeki pahalı
+özellikleri *cezalandırarak* amaç fonksiyonunu geçici olarak değiştirir, böylece
+aramayı o çukurdan çıkmaya zorlar. Duvar saati dolunca en iyi çözüm döner.
+
+**ABC (X1/X2)** ile farkı arama stratejisidir: ABC bir **popülasyon** tutar ve
+arı metaforuyla (işçi / gözcü / kâşif) çözüm uzayını tarar; GLS **tek** bir
+çözüm tutar ve ceza biriktirerek yön değiştirir. İkisi de aynı yerel hamle
+ailesini kullanır.
+
+> **Hiçbiri makine öğrenmesi değildir.** Eğitim verisi, model ya da öğrenilen
+> ağırlık yoktur; hepsi klasik arama ve sezgisel optimizasyon yöntemleridir.
+> Aynı girdi ve aynı bütçeyle aynı işi yaparlar. Aradaki asıl performans farkının
+> bir kısmı da algoritmik değildir: OR-Tools C++ çekirdekte, ABC saf Python'da
+> çalışır ve eşit duvar saati protokolü bu yüzden ABC'yi dezavantajlı konuma
+> sokar.
 
 ## Sonuç özeti
 
